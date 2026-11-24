@@ -285,17 +285,24 @@ function update(dt){
  }
  if(r.hp<=0){end(false,"Поражение · рыцарь вернулся к костру");return}
  const target=b.mobs.reduce((best,m)=>!best||Math.hypot(m.x-b.x,m.y-b.y)<Math.hypot(best.x-b.x,best.y-b.y)?m:best,null);
- const twin=weapon().style==="twins",range=twin?42:54;
- if(target&&Math.hypot(target.x-b.x,target.y-b.y)<=range&&b.cooldown<=0){
+ const twin=weapon().style==="twins",chargedSword=!twin&&b.primed&&r.boons?.spur;
+ const range=chargedSword?sweepRadius:twin?42:54;
+ if(target&&Math.hypot(target.x-b.x,target.y-b.y)<=range&&b.cooldown<=0&&!(chargedSword&&b.burst>0)){
  const rune=r.energy>=3,crit=Math.random()<Math.min(.55,.04*hero.agility+(twin?.12:0));
  const proc=buildStrike(r,b);
  const hit=proc.impact+(3+weapon().bonus+hero.power+r.force)*(crit?2:1)+(rune?4+hero.mind*2:0);
- b.dir=Math.atan2(target.y-b.y,target.x-b.x);swing={angle:b.dir,life:.3,rune:rune||proc.discharge,range};b.cooldown=twin?.43:.72;r.energy=rune?0:r.energy+1;
+ b.dir=Math.atan2(target.y-b.y,target.x-b.x);
+ const path=twin&&proc.discharge?lightningTargets(target,b.mobs):null;
+ if(path)b.buildFx={start:b.time,path:[b,...path].map(m=>({x:m.x,y:m.y-12}))};
+ if(chargedSword)b.buildFx={start:b.time,x:b.x,y:b.y,angle:b.dir};
+ if(chargedSword||path)b.heading=b.dir;
+ swing={angle:b.dir,life:.3,wide:!!chargedSword,rune:rune||(proc.discharge&&!path),range};b.cooldown=twin?.43:.72;r.energy=rune?0:r.energy+1;
  for(const m of b.mobs){const nearby=Math.hypot(m.x-target.x,m.y-target.y)<=64;
- const chain=proc.discharge&&nearby?3*r.boons.spark:0;
- const direct=m===target||(rune&&Math.hypot(m.x-b.x,m.y-b.y)<=72);
+ const chain=proc.discharge&&(path?path.includes(m):nearby)?3*r.boons.spark:0;
+ const swept=chargedSword&&inSwordSweep(b,m,b.dir);
+ const direct=swept||m===target||(rune&&Math.hypot(m.x-b.x,m.y-b.y)<=72);
  if(!direct&&!chain)continue;
- const damage=(direct?hit:0)+chain;m.hp-=damage;m.flash=.16;effect(m.x,m.y,damage,(chain||rune)?"#8ef6ef":crit?"#ffd376":"#f5e7c7")}
+ const damage=(direct?hit-(chargedSword&&!swept?proc.impact:0):0)+chain;m.hp-=damage;m.flash=.16;effect(m.x,m.y,damage,(chain||rune)?"#8ef6ef":crit?"#ffd376":"#f5e7c7")}
  const dead=b.mobs.filter(m=>m.hp<=0);
  if(dead.length&&r.tier===0&&!dead.some(m=>m.boss))scatterSigils(b);
  b.task.kills+=b.task.type==="boss"?dead.filter(m=>m.boss).length:dead.length;
@@ -367,7 +374,7 @@ function arenaArt(t){
  }
  const units=[...b.mobs,b].sort((a,c)=>a.y-c.y);
  for(const m of units){
- if(m===b){if(arrival>0){archAt(b.x,b.y+1,.65,t,1);ctx.save();ctx.globalAlpha=Math.max(.18,1-arrival/1.4)}ctx.save();ctx.translate(b.x,b.y);if(Math.cos(b.heading??0)<-.05)ctx.scale(-1,1);if(b.burst>0){line("#f4d9a9",2,-22,-12,-9,-14);line("#aed5ca",1,-28,-9,-12,-9)}knightAt(0,0,.56,weapon(),t,b.walk,false,armor().bonus,swing?.life>0?Math.sin(Math.PI*swing.life/.3)*1.45:0);ctx.restore();if(arrival>0)ctx.restore();continue}
+ if(m===b){if(arrival>0){archAt(b.x,b.y+1,.65,t,1);ctx.save();ctx.globalAlpha=Math.max(.18,1-arrival/1.4)}ctx.save();ctx.translate(b.x,b.y);if(Math.cos(b.heading??0)<-.05)ctx.scale(-1,1);if(b.burst>0){line("#f4d9a9",2,-22,-12,-9,-14);line("#aed5ca",1,-28,-9,-12,-9)}knightAt(0,0,.56,weapon(),t,b.walk,false,armor().bonus,swing?.life>0?(swing.wide?-.9+3.1*Math.sin(Math.PI*(1-swing.life/.3)*.75):Math.sin(Math.PI*swing.life/.3)*1.45):0);ctx.restore();if(arrival>0)ctx.restore();continue}
  if(m.species){wardCreature(m,t);continue}
  ctx.save();ctx.translate(m.x,m.y);const s=m.boss?1.42:1;ctx.scale(s,s);if(!m.wind)ctx.translate(0,Math.sin(t*9+m.max)*1.1);
  oval("#1c292a88",0,1,10,4);const coat=m.flash>0?"#ffe6ba":m.boss?"#854850":b.road.elite?"#8e574b":"#526a51";
@@ -376,8 +383,9 @@ function arenaArt(t){
  poly("#bcba9a",-7,-18,-10,-24,-4,-21,0,-23,5,-21,10,-24,7,-17,3,-13,-4,-14);rect("#463d3f",-5,-18,10,2);rect("#ffc684",1,-18,3,1);
  sword(8,-8,m.wind>0?-.55:1.0,true,false);if(m.hp<m.max){rect("#293331",-10,-29,20,2);rect("#e5a274",-10,-29,20*m.hp/m.max,2)}ctx.restore()
  }
- if(swing&&swing.life>0){const f=1-swing.life/.3;ctx.strokeStyle=swing.rune?"#88ffea":"#ffe8a6";ctx.lineWidth=4*(1-f)+.5;ctx.beginPath();ctx.arc(b.x,b.y-6,swing.range*.82,swing.angle-1.1+f*.7,swing.angle+.2+f*.95);ctx.stroke();
- if(swing.rune){ctx.beginPath();ctx.arc(b.x,b.y,15+f*57,0,Math.PI*2);ctx.stroke()}}
+ drawBuildAttack(b);
+ if(swing&&swing.life>0){const f=1-swing.life/.3;ctx.strokeStyle=swing.wide?"transparent":swing.rune?"#88ffea":"#ffe8a6";ctx.lineWidth=4*(1-f)+.5;ctx.beginPath();ctx.arc(b.x,b.y-6,swing.range*.82,swing.angle-1.1+f*.7,swing.angle+.2+f*.95);ctx.stroke();
+ if(swing.rune){ctx.strokeStyle="#88ffea";ctx.beginPath();ctx.arc(b.x,b.y,15+f*57,0,Math.PI*2);ctx.stroke()}}
  ctx.font="bold 11px Georgia";ctx.textAlign="center";for(const e of effects){ctx.fillStyle=e.color;ctx.fillText(String(e.n),e.x,e.y-23-(.55-e.life)*23)}ctx.restore()
 }
 stage.addEventListener("click",e=>{
