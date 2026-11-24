@@ -14,14 +14,16 @@ const btn=(label,action,css="")=>'<button class="'+css+'" data-action="'+action+
 let raisedUntil=0;
 let keys=new Set(),stick={x:0,y:0},pointer=null,screen="",combat=null,effects=[],swing=null,prev=0,saveTime=0;
 const zoneNames=["Казематы брода","Склеп знаменосца","Обсидиановый бастион"];
+const keepers=["Хранитель брода","Мёртвый знаменосец","Обсидиановый князь"];
 const rewards=["Лечение +12 ♥","Заточка +2 урона","Оберег +1 защиты"];
-function routes(){const kinds=[0,1,2];const n=Math.floor(Math.random()*3);const pair=[{elite:false,kind:kinds[n]},{elite:true,kind:kinds[(n+1+Math.floor(Math.random()*2))%3]}];return Math.random()<.5?pair:pair.reverse()}
+function routes(room=1){const kinds=[0,1,2];const n=Math.floor(Math.random()*3);const pair=[{elite:false,kind:kinds[n]},{elite:true,kind:kinds[(n+1+Math.floor(Math.random()*2))%3]}];const pool=room===1?["hunt","gather"]:["survive","clear"];if(Math.random()<.5)pool.reverse();pair.forEach((road,i)=>road.mission=room===3?"boss":pool[i]);return Math.random()<.5?pair:pair.reverse()}
 function hud(){
  const r=hero.expedition;
  $("area").textContent=r?"Северное пограничье · зал "+r.room+"/3":"Северное пограничье · убежище "+(hero.level>=5?"III":hero.level>=3?"II":"I");
  $("title").textContent=r?zoneNames[r.tier]:"Замок переправы";
  $("gold").textContent="◈ "+hero.coins;
  $("vitals").textContent=r?"♥ "+Math.ceil(r.hp)+"/"+maxHp()+"　✦ "+r.energy+"/3"+(combat?"　Враги: "+combat.mobs.length:""):hero.name+"　·　ур. "+hero.level;
+ $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat;if(combat)goalHud();
  for(const id of ["portrait","portal"])$(id).hidden=!!r;
  $("pause").hidden=!combat;$("stick").hidden=!combat;
  $("venture").textContent=r?"✧　Поход":"⚔　В поход";
@@ -39,13 +41,15 @@ function show(page){
  html='<small>Снаряжение</small><h2>Походная сумка</h2><p>Осколки руды · '+hero.shards+'</p>';
  hero.bag.forEach((it,i)=>{const worn=hero.gear[it.kind]===i;html+='<div class="row"><div><strong>'+safe(it.name)+'</strong><span>'+(it.kind==="armor"?"Защита":"Урон")+' +'+it.bonus+'</span></div>'+(worn?"Надето":r?"В лагере":btn("Надеть","equip:"+i))+'</div>'});
  }else if(page==="zones"){
- html='<small>Карта переправы</small><h2>Куда отправимся?</h2>';
+ html='<small>Карта переправы</small><h2>Куда отправимся?</h2><div class="preview-list" aria-label="Цели похода">'+Object.keys(contracts).map(type=>'<div>'+missionImage(type)+'<span>'+({gather:'Сбор',hunt:'Волны',survive:'Время',clear:'Зачистка',boss:'Босс'})[type]+'</span></div>').join("")+'</div>';
  zoneNames.forEach((name,i)=>{const lvl=i*2+1;html+=hero.level>=lvl?btn(name+'<span>Уровень '+lvl+' · 3 зала</span>',"zone:"+i,"route"):'<button class="route" disabled>'+name+' · ур. '+lvl+'</button>'});
  if(hero.run)html+='<p><a href="classic.html">Продолжить сохранённый пошаговый поход</a></p>';
  }else if(page==="routes"&&r){
  html='<small>Зал '+r.room+' из 3 · '+Math.ceil(r.hp)+' ♥</small><h2>Развилка</h2>';
- r.roads.forEach((road,i)=>{const name=r.room===3?"Хранитель брода":road.elite?"Багровые стражи":"Болотные бесы";const prize=r.room===3?(road.elite?"Редкая вещь +2 к качеству":"Постоянная экипировка"):roadReward(road);
- html+=btn((i?"Направо":"Налево")+' · '+name+'<span>'+(road.elite?"Элита · больше здоровья и урона":"Обычный бой")+'<br>Добыча: '+prize+'</span>',"road:"+i,"route")});
+ if(r.lastGoal)html+='<p class="completion">✓ '+r.lastGoal+'</p>';
+ r.roads.forEach((road,i)=>{const name=r.room===3?keepers[r.tier]:road.elite?"Багровые стражи":"Болотные бесы";const prize=r.room===3?(road.elite?"Редкая вещь +2 к качеству":"Постоянная экипировка"):roadReward(road);
+ const type=contractType(road,r.room),meta=contracts[type],goal=contractGoal(type,r.room,road.elite);
+ html+=btn(missionImage(type)+'<div><small>'+(i?"Правая дорога":"Левая дорога")+' · '+(road.elite?"Элита":"Обычный бой")+'</small><b>'+meta.name+'</b><span>'+(type==="boss"?name:meta.hint)+' · '+(type==="survive"?goal+" с":type==="boss"?"1 цель":"×"+goal)+'</span><em>'+prize+'</em></div>',"road:"+i,"route contract")});
  }else if(page==="pause"){
  html='<h2>Поход приостановлен</h2>'+btn("Продолжить","close","primary")+" "+btn("Отступить в лагерь","retreat");
  }else if(page==="prize"){
@@ -72,10 +76,45 @@ content.onclick=e=>{
 function begin(idx){
  const r=hero.expedition,road=r.roads[idx],count=2+r.room+(road.elite?1:0);
  combat={x:240,y:186,cooldown:0,mobs:[],time:0,dir:0,walk:false,road};
- for(let i=0;i<count;i++){
- const a=(i/count)*Math.PI*2+.4,boss=r.room===3&&i===0,hp=6+2*r.tier+(road.elite?5:0)+(boss?28:0);
- combat.mobs.push({x:240+Math.cos(a)*115,y:180+Math.sin(a)*97,hp,max:hp,boss,delay:i*.09,wind:0,tx:0,ty:0})}
+ const type=contractType(road,r.room);
+ combat.task={type,goal:contractGoal(type,r.room,road.elite),kills:0,found:0,wave:4,stones:[]};
+ if(type==="gather"){
+   const positions=[[270,184],[155,94],[324,264],[106,219]];
+   combat.task.stones=positions.slice(0,combat.task.goal).map(([x,y])=>({x,y}));
+ }
+ for(let i=0;i<count;i++)spawnMob((i/count)*Math.PI*2+.4,type==="boss"&&i===0);
  r.battle=combat;effects=[];swing=null;hud()
+}
+function spawnMob(angle,boss=false){
+ const b=combat,r=hero.expedition,hp=6+2*r.tier+(b.road.elite?5:0)+(boss?28:0);
+ let x=clamp(b.x+Math.cos(angle)*115,18,462),y=clamp(b.y+Math.sin(angle)*97,22,338);
+ if(Math.hypot(b.x-x,b.y-y)<56){x=b.x<240?b.x+90:b.x-90;y=b.y}
+ b.mobs.push({x,y,hp,max:hp,boss,delay:.3,wind:0,tx:0,ty:0})
+}
+function goalHud(){
+ const b=combat,task=b.task,type=task.type;
+ const progress=type==="survive"?Math.floor(b.time):type==="gather"?task.found:task.kills;
+ const count=type==="survive"?Math.max(0,task.goal-progress)+" с":Math.min(progress,task.goal)+" / "+task.goal;
+ if($("goalIcon").dataset.type!==type){$("goalIcon").src=contractIcons[type];$("goalIcon").dataset.type=type;$("goalName").textContent=contracts[type].name}
+ if($("goalCount").textContent!==count)$("goalCount").textContent=count;
+ $("goalBar").max=task.goal;$("goalBar").value=progress
+}
+function advanceMission(dt){
+ const b=combat,task=b.task;
+ if(task.type==="gather"){
+   task.stones=task.stones.filter(stone=>{
+     if(Math.hypot(b.x-stone.x,b.y-stone.y)>13)return true;
+     task.found++;hero.shards++;effect(stone.x,stone.y,"+1","#9affed");return false
+   });
+ }
+ if(task.type==="survive"?b.time>=task.goal:task.type==="gather"?task.found>=task.goal:task.kills>=task.goal){finishRoom();return}
+ if(["hunt","gather","survive"].includes(task.type)){
+   task.wave-=dt;
+   if(task.wave<=0 && b.mobs.length<5 && (task.type!=="hunt"||task.kills+b.mobs.length<task.goal)){
+     spawnMob(Math.random()*Math.PI*2);task.wave=task.type==="survive"?2.2:3.1
+   }
+ }
+ goalHud()
 }
 function end(win,msg){
  const r=hero.expedition;
@@ -89,8 +128,9 @@ function finishRoom(){
  const r=hero.expedition;xp(6+r.room*2);hero.shards+=1+Math.floor(Math.random()*3);hero.coins+=2;
  if(r.room===3){end(true,"Добыча хранителя");return}
  const road=combat.road;
+ r.lastGoal="Зал пройден · "+roadReward(road);
  if(road.kind===0)r.hp=Math.min(maxHp(),r.hp+(road.elite?20:12));else if(road.kind===1)r.force+=road.elite?4:2;else r.ward+=road.elite?2:1;
- r.room++;r.roads=routes();r.battle=null;combat=null;effects=[];swing=null;persist();hud();show("routes")
+ r.room++;r.roads=routes(r.room);r.battle=null;combat=null;effects=[];swing=null;persist();hud();show("routes")
 }
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 function update(dt){
@@ -100,7 +140,7 @@ function update(dt){
  const mag=Math.hypot(dx,dy);b.walk=mag>.05;
  b.x=clamp(b.x+dx/Math.max(1,mag)*82*dt,14,466);b.y=clamp(b.y+dy/Math.max(1,mag)*82*dt,16,346);
  for(const m of b.mobs){
- m.delay-=dt;const vx=b.x-m.x,vy=b.y-m.y,dist=Math.hypot(vx,vy);
+ m.delay-=dt;m.flash=Math.max(0,(m.flash||0)-dt);const vx=b.x-m.x,vy=b.y-m.y,dist=Math.hypot(vx,vy);
  if(m.wind>0){m.wind-=dt;if(m.wind<=0){if(Math.hypot(b.x-m.tx,b.y-m.ty)<(m.boss?32:22)){
  const hit=Math.max(1,4+(m.boss?4:0)+r.tier+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;effect(b.x,b.y,-hit,"#ff9a83");hud()}
  m.delay=.9}continue}
@@ -114,10 +154,12 @@ function update(dt){
  const rune=r.energy>=3,crit=Math.random()<Math.min(.55,.04*hero.agility+(twin?.12:0));
  const hit=(3+weapon().bonus+hero.power+r.force)*(crit?2:1)+(rune?4+hero.mind*2:0);
  b.dir=Math.atan2(target.y-b.y,target.x-b.x);swing={angle:b.dir,life:.3,rune,range};b.cooldown=twin?.43:.72;r.energy=rune?0:r.energy+1;
- for(const m of b.mobs){if(m!==target&&(!rune||Math.hypot(m.x-b.x,m.y-b.y)>72))continue;m.hp-=hit;effect(m.x,m.y,hit,rune?"#8ef6ef":crit?"#ffd376":"#f5e7c7")}
+ for(const m of b.mobs){if(m!==target&&(!rune||Math.hypot(m.x-b.x,m.y-b.y)>72))continue;m.hp-=hit;m.flash=.16;effect(m.x,m.y,hit,rune?"#8ef6ef":crit?"#ffd376":"#f5e7c7")}
+ const dead=b.mobs.filter(m=>m.hp<=0);
+ b.task.kills+=b.task.type==="boss"?dead.filter(m=>m.boss).length:dead.length;
  b.mobs=b.mobs.filter(m=>m.hp>0);hud();
- if(!b.mobs.length){finishRoom();return}
  }
+ advanceMission(dt);if(!combat)return;
  if(swing)swing.life-=dt;
  effects.forEach(f=>f.life-=dt);effects=effects.filter(f=>f.life>0);
  saveTime+=dt;if(saveTime>=1){persist();saveTime=0}
@@ -139,11 +181,19 @@ function arenaArt(t){
  for(let i=0;i<12;i++){const x=12+i*41;rect("#273e41",x,0,14,17);rect("#6d7770",x,0,14,6)}
  for(const [x,y] of [[28,32],[452,32],[28,330],[452,330]]){oval("#243837",x,y+4,10,5);rect("#45494a",x-4,y-12,8,17);glow(x,y-13,26,"#ffb86866");poly("#e7a45f",x-5,y-10,x-4,y-17,x,y-24+Math.sin(t*8)*2,x+5,y-14,x+3,y-10)}
  for(const m of b.mobs)if(m.wind>0){oval("#e66c532e",m.tx,m.ty,m.boss?32:22,m.boss?32:22);ctx.strokeStyle="#ff9b70";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(m.tx,m.ty,m.boss?32:22,0,Math.PI*2);ctx.stroke()}
+ if(b.task.type==="gather"){
+ for(const stone of b.task.stones){glow(stone.x,stone.y-4,18,"#66fff080");crystal(ctx,stone.x,stone.y-4+Math.sin(t*3)*1.5,.66)}
+ const nearest=b.task.stones.reduce((p,s)=>!p||Math.hypot(s.x-b.x,s.y-b.y)<Math.hypot(p.x-b.x,p.y-b.y)?s:p,null);
+ if(nearest&&Math.hypot(nearest.x-b.x,nearest.y-b.y)>40){
+   ctx.save();ctx.translate(b.x,b.y-8);ctx.rotate(Math.atan2(nearest.y-b.y+8,nearest.x-b.x));
+   poly("#adfff0",26,0,19,-3,21,0,19,3);ctx.restore()
+ }
+ }
  const units=[...b.mobs,b].sort((a,c)=>a.y-c.y);
  for(const m of units){
  if(m===b){knightAt(b.x,b.y,.49,weapon(),t,b.walk,false,armor().bonus,swing?.life>0?Math.sin(Math.PI*swing.life/.3)*1.45:0);continue}
- ctx.save();ctx.translate(m.x,m.y);const s=m.boss?1.42:1;ctx.scale(s,s);
- oval("#1c292a88",0,1,10,4);const coat=m.boss?"#854850":b.road.elite?"#8e574b":"#526a51";
+ ctx.save();ctx.translate(m.x,m.y);const s=m.boss?1.42:1;ctx.scale(s,s);if(!m.wind)ctx.translate(0,Math.sin(t*9+m.max)*1.1);
+ oval("#1c292a88",0,1,10,4);const coat=m.flash>0?"#ffe6ba":m.boss?"#854850":b.road.elite?"#8e574b":"#526a51";
  poly("#343944",-6,-7,6,-7,8,0,3,1,0,-3,-4,1,-8,1);
  poly(coat,-9,-12,-5,-19,4,-20,10,-12,8,-4,-7,-4);poly("#384851",-6,-16,0,-22,6,-16,4,-11,-4,-11);
  poly("#bcba9a",-7,-18,-10,-24,-4,-21,0,-23,5,-21,10,-24,7,-17,3,-13,-4,-14);rect("#463d3f",-5,-18,10,2);rect("#ffc684",1,-18,3,1);
@@ -176,5 +226,5 @@ function frame(ms){
  if(combat)arenaArt(ms/1000);else campArt(ms/1000,hero,ms<raisedUntil);
  requestAnimationFrame(frame)
 }
-if(hero.expedition?.battle){combat=hero.expedition.battle;show("pause")}else if(hero.expedition)show("routes");
+if(hero.expedition?.battle){combat=hero.expedition.battle;combat.task??={type:"clear",goal:combat.mobs.length,kills:0,found:0,stones:[]};show("pause")}else if(hero.expedition)show("routes");
 hud();requestAnimationFrame(frame);
