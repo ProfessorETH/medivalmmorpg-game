@@ -149,7 +149,7 @@ content.onclick=e=>{
  if(act==="storyStart")startRun(hero.chapter,"story");
  if(act==="brief"&&hero.base==="castle"&&hero.metSmith)show("story");
  if(act==="temper"&&screen==="forge"&&hero.base==="castle"&&!hero.expedition&&hero.shards>=forgePrice()){
-   const blade=weapon();hero.shards-=forgePrice();blade.bonus++;blade.tempered=(blade.tempered||0)+1;hero.metSmith=true;show("forge")
+   const blade=weapon();hero.shards-=forgePrice();soundscape.play("forge");blade.bonus++;blade.tempered=(blade.tempered||0)+1;hero.metSmith=true;show("forge")
  }
  if(act==="settings"){openSettings();return}
  if(act==="road"&&!combat&&hero.expedition){depart(hero.expedition.mode==="story"?"stairs":"portal",idx)}
@@ -173,7 +173,7 @@ function flaskHud(){
 function drink(type){
  const r=hero.expedition;if(!combat||!r||$(type+"Flask").disabled)return;
  if(type==="heal")r.hp=Math.min(maxHp(),r.hp+16);else r.energy=3;
- r.flasks[type]--;effect(combat.x,combat.y,type==="heal"?"+♥":"+✦",type==="heal"?"#ffa698":"#9adbff");
+ soundscape.play("flask");r.flasks[type]--;effect(combat.x,combat.y,type==="heal"?"+♥":"+✦",type==="heal"?"#ffa698":"#9adbff");
  persist();hud()
 }
 $("dash").onclick=dash;
@@ -298,14 +298,14 @@ function update(dt){
  for(const m of b.mobs){
  if(m.species){
    const raw=wardStep(m,b,dt);
-   if(raw&&!(b.burst>0)){const hit=Math.max(1,raw+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;effect(b.x,b.y,-hit,"#ff9a83");hud()}
+   if(raw&&!(b.burst>0)){const hit=Math.max(1,raw+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;soundscape.play("hurt",.18);effect(b.x,b.y,-hit,"#ff9a83");hud()}
    continue
  }
  m.delay-=dt;m.flash=Math.max(0,(m.flash||0)-dt);const vx=b.x-m.x,vy=b.y-m.y,dist=Math.hypot(vx,vy);
  if(m.wind>0){m.wind-=dt;if(m.wind<=0){if(Math.hypot(b.x-m.tx,b.y-m.ty)<(m.boss?32:22)){
- const hit=Math.max(1,4+(m.boss?4:0)+r.tier+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;effect(b.x,b.y,-hit,"#ff9a83");hud()}
+ const hit=Math.max(1,4+(m.boss?4:0)+r.tier+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;soundscape.play("hurt",.18);effect(b.x,b.y,-hit,"#ff9a83");hud()}
  m.delay=.9}continue}
- if(dist<25&&m.delay<=0){m.wind=.7;m.tx=b.x;m.ty=b.y}
+ if(dist<25&&m.delay<=0){m.wind=.7;soundscape.play("warning",.42);m.tx=b.x;m.ty=b.y}
  else if(dist>13){const v=(m.boss?22:29)+r.tier*3;m.x+=vx/dist*v*dt;m.y+=vy/dist*v*dt}
  }
  if(r.hp<=0){end(false,"Поражение · рыцарь вернулся к костру");return}
@@ -315,6 +315,7 @@ function update(dt){
  if(target&&Math.hypot(target.x-b.x,target.y-b.y)<=range&&b.cooldown<=0&&!(chargedSword&&b.burst>0)){
  const rune=r.energy>=3,crit=Math.random()<Math.min(.55,.04*hero.agility+(twin?.12:0));
  const proc=buildStrike(r,b);
+ soundscape.play(proc.discharge?"lightning":chargedSword?"sweep":twin?"twins":"steel");
  const hit=proc.impact+(3+weapon().bonus+hero.power+r.force)*(crit?2:1)+(rune?4+hero.mind*2:0);
  b.dir=Math.atan2(target.y-b.y,target.x-b.x);
  const path=twin&&proc.discharge?lightningTargets(target,b.mobs):null;
@@ -438,13 +439,18 @@ pad.onlostpointercapture=pad.onpointercancel=pad.onpointerup=e=>{if(e.pointerId=
 function suspend(){clearInput();persist();if(combat&&(!dialog.open||screen==="bag"))show("pause")}
 document.addEventListener("visibilitychange",()=>{if(document.hidden)suspend()});
 addEventListener("blur",suspend);addEventListener("pagehide",persist);
+let nextCampPaint=0;
 function frame(ms){
+ if(document.hidden){prev=ms;requestAnimationFrame(frame);return}
+ soundscape.tick(combat?(combat.mobs.some(m=>m.boss)?"boss":"fight"):hero.base==="castle"?"yard":"ford");
  const dt=Math.min(.05,(ms-prev)/1000);prev=ms;
  const active=!layoutDialog.open&&!dialog.open&&!document.hidden;
  if(active&&!combat&&!travel)moveOnGround(dt);
  if(travel&&active){travel.p=Math.min(1,travel.p+dt/(reducedMotion.matches?.3:travel.to==="castle"||travel.to==="camp"||travel.to==="storyHome"?6.7:travel.to==="homePortal"?3.6:2.2));if(travel.p>=1)arrive()}
  if(arrival>0&&active){arrival=Math.max(0,arrival-dt);if(!arrival)$("locationCard").hidden=true}
  if(combat&&!arrival&&!layoutDialog.open&&(!dialog.open||screen==="bag")&&!document.hidden)update(dt);
+ if(!combat&&!travel&&!walker?.walk&&ms<nextCampPaint){requestAnimationFrame(frame);return}
+ nextCampPaint=ms+30;
  if(combat)arenaArt(ms/1000);else if(travel)journeyScene(ms/1000,travel);else if(hero.base==="castle")courtyardCamp(ms/1000,1,false,atAnvil?1:0);else refugeArt(ms/1000,hero,null,ms<raisedUntil);
  requestAnimationFrame(frame)
 }

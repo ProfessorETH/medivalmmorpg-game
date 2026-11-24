@@ -12,7 +12,7 @@ function scatterSigils(b){
 function takeSigil(b,r){
  const s=b.sigils?.find(s=>Math.hypot(b.x-s.x,b.y-s.y)<12);
  if(!s)return;
- r.boons??={};r.boons[s.kind]=(r.boons[s.kind]||0)+1;b.sigils=[];
+ soundscape.play("reward");r.boons??={};r.boons[s.kind]=(r.boons[s.kind]||0)+1;b.sigils=[];
  $("flash").textContent=sigils[s.kind].name+" · "+sigils[s.kind].hint+" · ур. "+r.boons[s.kind];hud()
 }
 function drawSigils(b,t){
@@ -32,7 +32,7 @@ function dash(){
  const dx=stick.x+Number(keys.has("KeyD")||keys.has("ArrowRight"))-Number(keys.has("KeyA")||keys.has("ArrowLeft"));
  const dy=stick.y+Number(keys.has("KeyS")||keys.has("ArrowDown"))-Number(keys.has("KeyW")||keys.has("ArrowUp"));
  b.dashAngle=Math.hypot(dx,dy)>.1?Math.atan2(dy,dx):b.heading??0;
- b.burst=.17;b.rest=1.3;b.primed=!!hero.expedition.boons?.spur
+ soundscape.play("dash");b.burst=.17;b.rest=1.3;b.primed=!!hero.expedition.boons?.spur
 }
 function buildStrike(r,b){
  const boons=r.boons||{};

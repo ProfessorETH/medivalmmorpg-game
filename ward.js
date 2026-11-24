@@ -34,7 +34,7 @@ function wardStep(m,b,dt){
    m.x=clamp(m.x-dy/d*19*dt,14,466);m.y=clamp(m.y+dx/d*19*dt,16,346)
  }
  const reach=m.species==="keeper"&&m.turn%2?36:a.reach;
- if(d<reach&&m.delay<=0){m.area=attackArea(m,b);m.wind=a.wind;m.facing=Math.sign(dx)||1}
+ if(d<reach&&m.delay<=0){m.area=attackArea(m,b);m.wind=a.wind;soundscape.play("warning",.42);m.facing=Math.sign(dx)||1}
  else if(d>reach*.6){m.x+=dx/d*a.speed*dt;m.y+=dy/d*a.speed*dt;m.facing=Math.sign(dx)||1}
  return 0
 }

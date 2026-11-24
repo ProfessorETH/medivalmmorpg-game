@@ -1,5 +1,7 @@
 "use strict";
 const campPlate=new Image(),campSeat=new Image(),campFire=new Image();
+const signalLamp=new Image();
+signalLamp.src="ford-lamp.webp";
 campFire.src="camp-fire.webp";
 let plateFile="";
 function selectPlate(w,h){
@@ -18,6 +20,17 @@ function drawCampPlate(w,h,level,t){
  const fit=Math.max(w/campPlate.width,h/campPlate.height);
  const dw=campPlate.width*fit,dh=campPlate.height*fit;
  ctx.drawImage(campPlate,(w-dw)/2,(h-dh)/2,dw,dh);
+ if(signalLamp.naturalWidth){
+   const tall=w/h<.87, scale=dw/(tall?350:550);
+   const x=(w-dw)/2+dw*(tall?260/350:397/550);
+   const y=(h-dh)/2+dh*(tall?324/600:145/307);
+   ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+   if(!reducedMotion.matches)ctx.rotate(.045*Math.sin(t*1.48));
+   line("#514730",1,0,-1,0,5);
+   glow(0,17,15,"#ffba4a50");
+   ctx.drawImage(signalLamp,-9.5,3,19,26);
+   ctx.restore()
+ }
  // Glints sit on the open water below the ferry chain in both compositions.
  if(!reducedMotion.matches){
    for(let i=0;i<7;i++){
@@ -84,6 +97,7 @@ function arrivalArt(t){
  rect("#ac9c80",0,0,width,height);
  if(wardYard.complete&&wardYard.naturalWidth)ctx.drawImage(wardYard,0,0,width,height);
  const x=width*(tall?.28:.30),y=height*(tall?.64:.67);
+ if((t*.85)%3<.09)soundscape.play("anvil",2.8);
  glow(x,y,Math.min(width,height)*.024,"#ffbc4980");
  if(!reducedMotion.matches)for(let i=0;i<4;i++){
    const u=(t*.85+i*.09)%1;ctx.globalAlpha=(1-u)*.8;

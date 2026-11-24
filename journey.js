@@ -20,6 +20,7 @@ function ferryOar(side,phase,active){
 }
 function drawSkiff(x,y,s,t,rowing,rider,reverse=false,moored=false){
  const wave=reducedMotion.matches?0:Math.sin(t*2.45),phase=t*4.7;
+ if(rowing&&Math.sin(phase)<-.75)soundscape.play("oar",1);
  ctx.save();ctx.translate(x,y);ctx.scale(s,s);
  if(reverse)ctx.scale(-1,1);
  oval("#4b615933",0,4,40,4);

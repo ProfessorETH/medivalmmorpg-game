@@ -1,5 +1,5 @@
 "use strict";
-let walker=null,groundGoal=null,nearAction=null,bellTime=-20,bellAudio;
+let walker=null,groundGoal=null,nearAction=null,bellTime=-20;
 function inYard(){return hero.base==="castle"}
 function homePose(){return inYard()?{x:.5,y:.85}:{x:.53,y:.91}}
 function canExplore(){return !combat&&!travel&&!hero.expedition&&!layoutDialog.open&&!dialog.open}
@@ -26,7 +26,9 @@ function moveOnGround(dt){
  a.vx+=(dx/Math.max(1,mag)*speed-a.vx)*acc;a.vy+=(dy/Math.max(1,mag)*speed*.75-a.vy)*acc;
  const nx=clamp(a.x+a.vx*dt/width,.05,.95),ny=clamp(a.y+a.vy*dt/height,floorEdge(nx),.98);
  const stride=Math.hypot((nx-a.x)*width,(ny-a.y)*height);
+ const oldStep=Math.floor(a.step/Math.PI);
  a.walk=stride>dt*9;a.step+=stride/Math.max(.6,Math.min(width/230,height/300))*.135;
+ if(a.walk&&Math.floor(a.step/Math.PI)!==oldStep)soundscape.play("step",.16);
  if(a.walk){const target=clamp(-a.vy/(Math.hypot(a.vx,a.vy)||1),-1,1);a.turn=(a.turn||0)+(target-(a.turn||0))*acc}
  if(Math.abs(a.vx)>8)a.face=Math.sign(a.vx);
  a.x=nx;a.y=ny;
@@ -62,14 +64,7 @@ function bellPoint(){
 }
 function ringFordBell(){
  const t=performance.now()/1000;if(t-bellTime<1)return;bellTime=t;
- try{
-   bellAudio??=new AudioContext();bellAudio.resume().catch(()=>{});
-   for(const [hz,level] of [[293,.085],[588,.04],[817,.027],[1253,.014]]){
-     const osc=bellAudio.createOscillator(),gain=bellAudio.createGain(),now=bellAudio.currentTime;
-     osc.frequency.value=hz;gain.gain.setValueAtTime(.001,now);gain.gain.exponentialRampToValueAtTime(level,now+.014);
-     gain.gain.exponentialRampToValueAtTime(.0001,now+2.6);osc.connect(gain);gain.connect(bellAudio.destination);osc.start();osc.stop(now+2.7)
-   }
- }catch{}
+ soundscape.play("bell");
 }
 function fordBirds(t){
  const age=t-bellTime;if(age<0||age>5||reducedMotion.matches)return;
