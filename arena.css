@@ -120,3 +120,4 @@ body.wide-mode #field{flex:1;min-height:0;max-height:none;height:auto}
 
 .exploring #portrait{pointer-events:none}
 .audioSettings{display:grid;gap:4px;margin:8px 0 12px}.audioSettings label{display:grid;grid-template-columns:5em 1fr;align-items:center;min-height:36px}.audioSettings input{width:100%;accent-color:#dbb27b}#layoutDialog{max-height:92dvh;overflow:auto}
+#roadEntry{position:absolute;left:4%;bottom:9%;z-index:2;color:#fff0cd;background:#292821eb;border:1px solid #9e8962;font:600 15px Georgia;padding:9px 17px}#field:has(#roadEntry[hidden]):has(#stick:not([hidden])) #groundUse{bottom:24%}

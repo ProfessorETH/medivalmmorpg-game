@@ -42,7 +42,9 @@ function moveOnGround(dt){
  const btn=$("groundUse");btn.hidden=!nearAction;if(nearAction)btn.textContent=nearAction.v[2]
 }
 function useGround(){
- if(!canExplore()||!nearAction)return;
+ if(!canExplore())return;
+ if(roadside){roadAction();return}
+ if(!nearAction)return;
  const id=nearAction.v[3];
  if(id==="rest"){resetGround();return}
  $(id).click()
@@ -75,8 +77,8 @@ function fordBirds(t){
 let groundTouch=null,dragEnded=0;
 stage.addEventListener("pointerdown",e=>{
  if(e.pointerType==="mouse"||!canExplore())return;
- const box=stage.getBoundingClientRect(),x=(e.clientX-box.left)/width,y=(e.clientY-box.top)/height;
- if(y<floorEdge(x)-.025||groundTouch)return;
+ const {x,y}=campPointer(e);
+ if((!roadside&&y<floorEdge(x)-.025)||groundTouch)return;
  groundTouch={id:e.pointerId,x:e.clientX,y:e.clientY,drag:false};stage.setPointerCapture(e.pointerId)
 });
 stage.addEventListener("pointermove",e=>{

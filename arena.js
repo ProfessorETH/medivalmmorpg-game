@@ -30,6 +30,7 @@ function enterTitle(label,name){
 }
 function depart(to,road){
  if(travel||combat)return;
+ if(roadside)leaveRoad();
  travel={to,road,p:0,fromSmith:atAnvil,origin:walker?{...walker}:null};resetGround();atAnvil=false;clearInput();closeSheet();hud()
 }
 function arrive(){
@@ -77,6 +78,8 @@ function hud(){
  if(combat&&r.tier===0)$("hint").textContent="Движение — джойстик или WASD. Рывок — кнопка или пробел. Для выбора дара пройди через знак.";
  if(!r)$("hint").textContent=!courtyard?"У переправы ждёт лодка. За воротами работает кузнец Радан.":!hero.metSmith?"Подойди к наковальне. Радан подготовит клинок к первому поручению.":chapters[hero.chapter]?"Глава "+(hero.chapter+1)+" · "+chapters[hero.chapter].title+" · Спуск под красным знаменем.":"Дорога свободна. Разломы открываются с 10-го уровня.";
  if(!r&&!travel)$("hint").textContent+=" Бег — WASD или стрелки. На телефоне коснись земли или веди пальцем.";
+ $("roadEntry").hidden=!!r||courtyard||!!travel||!!roadside;
+ if(roadside){for(const id of ["keep","portal","portrait"])$(id).hidden=true;$("title").textContent="Тракт перевозчика";$("area").textContent="Колокольный брод";$("hint").textContent="От навеса тропа ведёт вправо, к колоколу и причалу.";$("stick").hidden=false}
  if(r?.mode==="story")$("area").textContent="Глава "+(r.tier+1)+" · "+chapters[r.tier].title+" · Зал "+r.room+"/"+r.total;
  if(r?.mode==="rift")$("area").textContent+=" · Глубина "+r.depth;
 }
@@ -139,6 +142,7 @@ function show(page){
 function closeSheet(){if((screen==="forge"||screen==="story")&&atAnvil&&!travel){travel={to:"smithBack",p:0};atAnvil=false}if(dialog.open)dialog.close();screen="";clearInput();hud()}
 function roadReward(road){return road.elite?["Лечение +20 ♥","Заточка +4 урона","Оберег +2 защиты"][road.kind]:rewards[road.kind]}
 function navigate(){if(travel)return;if(combat)show("pause");else if(hero.expedition)show("routes");else storyAction()}
+$("roadEntry").onclick=enterRoad;
 $("keep").onclick=()=>depart("castle");$("returnCamp").onclick=()=>depart("camp");
 $("portrait").onclick=$("character").onclick=()=>show("hero");$("inventory").onclick=()=>show("bag");$("smith").onclick=()=>depart("smith");$("stairs").onclick=storyAction;
 $("portal").onclick=()=>{if(!travel&&!hero.expedition&&hero.level>=10)show("zones")};$("venture").onclick=navigate;$("pause").onclick=()=>show("pause");$("close").onclick=closeSheet;
@@ -370,8 +374,11 @@ function drawDoors(b,r,t){
 }
 function arenaArt(t){
  const b=combat,r=hero.expedition;
- const scale=Math.max(width/480,height/360);
- const ox=clamp(width/2-b.x*scale,width-480*scale,0),oy=clamp(height/2-b.y*scale,height-360*scale,0);
+ if(arenaSubject!==b){arenaSubject=b;arenaView={}}
+ const scale=Math.max(width/480,height/360)*(reducedMotion.matches?1:1.08);
+ const speed=b.walk?82:0;
+ followRoom(arenaView,b.x,b.y-6,Math.cos(b.heading??0)*speed,Math.sin(b.heading??0)*speed,scale,480,360,t);
+ const ox=arenaView.left,oy=arenaView.top;
  ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);
  if(r.tier===0)wardHall(t,r.room);else{
  rect("#374d4c",0,0,480,360);
@@ -416,7 +423,8 @@ function arenaArt(t){
 }
 stage.addEventListener("click",e=>{
  if(!canExplore()||performance.now()-dragEnded<200)return;
- const box=stage.getBoundingClientRect(),x=(e.clientX-box.left)/width,y=(e.clientY-box.top)/height;
+ if(roadside){roadTap(e);return}
+ const {x,y}=campPointer(e);
  const dock=mooring(width,height);
  if(!inYard()&&Math.abs(x-dock.x/width)<.09&&Math.abs(y-dock.y/height)<.035){depart("castle");return}
  if(!inYard()&&hero.level>=10&&Math.abs(x-.80)<.085&&y>.67&&y<.78){$("portal").click();return}
@@ -445,14 +453,16 @@ function frame(ms){
  soundscape.tick(combat?(combat.mobs.some(m=>m.boss)?"boss":"fight"):hero.base==="castle"?"yard":"ford");
  const dt=Math.min(.05,(ms-prev)/1000);prev=ms;
  const active=!layoutDialog.open&&!dialog.open&&!document.hidden;
- if(active&&!combat&&!travel)moveOnGround(dt);
+ if(active&&!combat&&!travel){if(roadside)roadMove(dt);else moveOnGround(dt)}
  if(travel&&active){travel.p=Math.min(1,travel.p+dt/(reducedMotion.matches?.3:travel.to==="castle"||travel.to==="camp"||travel.to==="storyHome"?6.7:travel.to==="homePortal"?3.6:2.2));if(travel.p>=1)arrive()}
  if(arrival>0&&active){arrival=Math.max(0,arrival-dt);if(!arrival)$("locationCard").hidden=true}
  if(combat&&!arrival&&!layoutDialog.open&&(!dialog.open||screen==="bag")&&!document.hidden)update(dt);
- if(!combat&&!travel&&!walker?.walk&&ms<nextCampPaint){requestAnimationFrame(frame);return}
+ campCamera(dt);
+ if(!combat&&!travel&&!roadside&&!walker?.walk&&ms<nextCampPaint){requestAnimationFrame(frame);return}
  nextCampPaint=ms+30;
- if(combat)arenaArt(ms/1000);else if(travel)journeyScene(ms/1000,travel);else if(hero.base==="castle")courtyardCamp(ms/1000,1,false,atAnvil?1:0);else refugeArt(ms/1000,hero,null,ms<raisedUntil);
- requestAnimationFrame(frame)
+ ctx.save();ctx.translate(campView.left,campView.top);ctx.scale(campView.zoom,campView.zoom);
+ if(combat)arenaArt(ms/1000);else if(roadside)roadArt(ms/1000);else if(travel)journeyScene(ms/1000,travel);else if(hero.base==="castle")courtyardCamp(ms/1000,1,false,atAnvil?1:0);else refugeArt(ms/1000,hero,null,ms<raisedUntil);
+ ctx.restore();requestAnimationFrame(frame)
 }
 if(hero.pendingCampPrize&&hero.trophy&&!hero.expedition){travel={to:hero.pendingCampPrize==="storyHome"?"storyHome":"homePortal",p:0}}
 else if(hero.expedition?.battle){combat=hero.expedition.battle;combat.task??={type:"clear",goal:combat.mobs.length,kills:0,found:0,stones:[]};show("pause")}else if(hero.expedition)show("routes");
