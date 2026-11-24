@@ -44,3 +44,14 @@ main:has(.fighting) footer{display:none}
 @media(max-width:480px){header{gap:6px}header strong{font-size:clamp(14px,4vw,18px)}#settings{font-size:13px;padding:5px 7px}header .sigil{padding:2px 5px 4px}header span{white-space:nowrap;font-size:13px}}
 @media(max-width:365px){#field{--pad-size:86px}}
 @media(max-height:480px){#field{--pad-size:66px}#settings{min-height:34px}}
+#layoutDialog{margin:auto;inset:0;width:min(465px,calc(100% - 28px));border-radius:8px}
+#layoutDialog fieldset{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#layoutDialog .layoutChoice{display:grid;position:relative;justify-items:center;gap:5px;padding:14px 2px 9px;text-align:center}
+.layoutChoice .scheme{width:min(88%,80px)}.layoutChoice input{position:absolute;opacity:0}
+.layoutChoice:has(:checked) strong:before{content:"✓ ";color:#f2c780}
+#keep,#returnCamp{position:absolute;color:#f8e7c8;background:#23323beb;border:1px solid #b6ab89;padding:6px 13px;font:600 15px Georgia,serif}
+#keep{left:50%;top:50%;transform:translate(-50%,-10%)}#returnCamp{left:50%;bottom:13%;transform:translateX(-50%)}
+#portal{top:60%;right:auto;left:79%;transform:translateX(-50%);white-space:nowrap;min-height:44px;color:#b9ffed;background:#1a3b3ee8;border-color:#82c6b7}
+#portrait{top:61%;left:41%;height:23%;width:23%}
+#locationCard{position:absolute;left:50%;top:44%;width:min(85%,460px);height:auto;transform:translate(-50%,-50%);pointer-events:none;image-rendering:pixelated;z-index:2;border-block:1px solid #cab588}
+#locationCard[hidden]{display:none}.travelling .hud{opacity:.45}

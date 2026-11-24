@@ -11,7 +11,26 @@ function persist(){try{localStorage.setItem(key,JSON.stringify(hero))}catch{$("s
 function xp(n){hero.xp+=n;while(hero.xp>=hero.level*18){hero.xp-=hero.level*18;hero.level++;hero.points++}}
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const btn=(label,action,css="")=>'<button class="'+css+'" data-action="'+action+'">'+label+'</button>';
-let raisedUntil=0;
+let raisedUntil=0,travel=null,arrival=0;
+const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)");
+function enterTitle(label,name){
+ const card=$("locationCard");card.width=230;card.height=49;
+ const pen=card.getContext("2d");pen.fillStyle="#14212ce8";pen.fillRect(0,0,230,49);
+ pen.textAlign="center";pen.fillStyle="#ddbc83";pen.font="bold 8px monospace";pen.fillText(label.toUpperCase(),115,15);
+ pen.fillStyle="#fff1cb";pen.font="bold 15px monospace";pen.fillText(name.toUpperCase(),115,36,218);
+ card.setAttribute("aria-label",label+" · "+name);card.hidden=false;arrival=reducedMotion.matches?.55:1.4
+}
+function depart(to,road){
+ if(travel||combat)return;
+ travel={to,road,p:0};clearInput();closeSheet();hud()
+}
+function arrive(){
+ const {to,road}=travel;travel=null;
+ if(to==="homePortal"){hero.base="camp";enterTitle("Возвращение","Огонь на переправе");show("prize");persist();hud();return}
+ if(to==="portal"){hero.base="camp";begin(road)}
+ else{hero.base=to;enterTitle("Северное пограничье",to==="castle"?"Внутренний двор":"Огонь на переправе")}
+ persist();hud()
+}
 let keys=new Set(),stick={x:0,y:0},pointer=null,screen="",combat=null,effects=[],swing=null,prev=0,saveTime=0;
 const zoneNames=["Казематы брода","Склеп знаменосца","Обсидиановый бастион"];
 const keepers=["Хранитель брода","Мёртвый знаменосец","Обсидиановый князь"];
@@ -23,12 +42,19 @@ function hud(){
  $("title").textContent=r?zoneNames[r.tier]:"Замок переправы";
  $("gold").textContent="◈ "+hero.coins;
  $("vitals").textContent=r?"♥ "+Math.ceil(r.hp)+"/"+maxHp()+"　✦ "+r.energy+"/3"+(combat?"　Враги: "+combat.mobs.length:""):hero.name+"　·　ур. "+hero.level;
- $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat||!!combat.exits;if(combat&&!combat.exits)goalHud();
+ $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat||!!combat.exits||!!combat.returnGate;if(combat&&!combat.exits&&!combat.returnGate)goalHud();
  $("belt").hidden=!combat;if(combat)flaskHud();
- for(const id of ["portrait","portal"])$(id).hidden=!!r;
+ const courtyard=hero.base==="castle"&&!r;
+ $("field").classList.toggle("travelling",!!travel);
+ for(const id of ["portrait","portal","keep"])$(id).hidden=!!r||courtyard||!!travel;
+ $("returnCamp").hidden=!courtyard||!!travel;
+ $("title").textContent=r?zoneNames[r.tier]:courtyard?"Внутренний двор":"Огонь на переправе";
+ if(!r)$("area").textContent=courtyard?"Замок переправы":"Северное пограничье · лагерь";
+ for(const id of ["venture","character","inventory","settings"])$(id).disabled=!!travel;
  $("pause").hidden=!combat;$("stick").hidden=!combat;
- $("venture").textContent=r?"✧　Поход":"⚔　В поход";
- $("hint").textContent=r?"Движение: джойстик, WASD или стрелки. Удары и руна срабатывают сами.":"Коснись рыцаря, чтобы осмотреть его, или войди в портал.";
+ $("venture").textContent=courtyard?"↩　К костру":r?"✧　Поход":"⚔　В поход";
+ $("hint").textContent=r?"Движение: джойстик, WASD или стрелки. Удары и руна срабатывают сами.":"Коснись рыцаря, чтобы осмотреть его, или выбери дорогу.";
+ if(courtyard)$("hint").textContent="Осмотри рыцаря и снаряжение во дворе замка.";
 }
 function clearInput(){keys.clear();pointer=null;stick={x:0,y:0};$("stick").firstElementChild.style.transform=""}
 const layoutDialog=$("layoutDialog"), layoutKey="ash-knight-controls-v1";
@@ -87,14 +113,15 @@ function show(page){
 }
 function closeSheet(){if(dialog.open)dialog.close();screen="";clearInput();hud()}
 function roadReward(road){return road.elite?["Лечение +20 ♥","Заточка +4 урона","Оберег +2 защиты"][road.kind]:rewards[road.kind]}
-function navigate(){if(combat)show("pause");else if(hero.expedition)show("routes");else show("zones")}
+function navigate(){if(travel)return;if(hero.base==="castle"&&!hero.expedition){depart("camp");return}if(combat)show("pause");else if(hero.expedition)show("routes");else show("zones")}
+$("keep").onclick=()=>depart("castle");$("returnCamp").onclick=()=>depart("camp");
 $("portrait").onclick=$("character").onclick=()=>show("hero");$("inventory").onclick=()=>show("bag");$("portal").onclick=$("venture").onclick=navigate;$("pause").onclick=()=>show("pause");$("close").onclick=closeSheet;
 dialog.addEventListener("cancel",e=>{e.preventDefault();closeSheet()});
 content.onclick=e=>{
  const b=e.target.closest("[data-action]");if(!b)return;const [act,arg]=b.dataset.action.split(":");const idx=Number(arg);
  if(act==="zone"&&!hero.expedition){hero.expedition={tier:idx,total:5,flasks:{heal:2,mana:2},room:1,hp:maxHp(),energy:0,force:0,ward:0,roads:routes(),battle:null};$("flash").textContent="";show("routes")}
  if(act==="settings"){openSettings();return}
- if(act==="road"&&!combat&&hero.expedition){begin(idx);closeSheet()}
+ if(act==="road"&&!combat&&hero.expedition){depart("portal",idx)}
  if(act==="name"){const s=$("knightName").value.trim();if(s)hero.name=s;show("hero")}
  if(act==="stat"&&hero.points&&["power","agility","mind"].includes(arg)){hero[arg]++;hero.points--;show("hero")}
  if(act==="equip"&&!hero.expedition){hero.gear[hero.bag[idx].kind]=idx;raisedUntil=performance.now()+1600;closeSheet()}
@@ -121,7 +148,7 @@ $("healFlask").onclick=()=>drink("heal");$("manaFlask").onclick=()=>drink("mana"
 $("battleBag").onclick=()=>screen==="bag"?closeSheet():show("bag");
 function begin(idx){
  const r=hero.expedition,road=r.roads[idx],count=2+r.room+(road.elite?1:0);
- combat={x:240,y:186,cooldown:0,mobs:[],time:0,dir:0,walk:false,road};
+ combat={x:240,y:237,cooldown:0,mobs:[],time:0,dir:0,walk:false,road};
  const type=contractType(road,r.room);
  combat.task={type,goal:contractGoal(type,r.room,road.elite),kills:0,found:0,wave:4,stones:[]};
  if(type==="gather"){
@@ -129,7 +156,7 @@ function begin(idx){
    combat.task.stones=positions.slice(0,combat.task.goal).map(([x,y])=>({x,y}));
  }
  for(let i=0;i<count;i++)spawnMob((i/count)*Math.PI*2+.4,type==="boss"&&i===0);
- r.battle=combat;effects=[];swing=null;hud()
+ r.battle=combat;effects=[];swing=null;enterTitle("Зал "+r.room+" / "+(r.total||3),zoneNames[r.tier]);hud()
 }
 function spawnMob(angle,boss=false){
  const b=combat,r=hero.expedition,hp=6+2*r.tier+(b.road.elite?5:0)+(boss?28:0);
@@ -168,11 +195,15 @@ function end(win,msg){
  const names=isArmor?["Латы дозорного","Панцирь склепа","Обсидиановые латы"]:style==="twins"?["Клыки брода","Кинжалы склепа","Обсидиановые клинки"]:["Серебряный фальшион","Меч знаменосца","Клинок князя"];
  const it=makeItem(isArmor?"armor":"weapon",names[tier],2+tier*2+(combat.road.elite?2:0)+Math.floor(Math.random()*3),isArmor?null:style);
  hero.bag.push(it);hero.trophy={...it,index:hero.bag.length-1};hero.coins+=12+tier*8;xp(10)}
- if(screen==="bag")closeSheet();hero.expedition=null;combat=null;swing=null;effects=[];$("flash").textContent=msg;persist();hud();if(win)show("prize")
+ if(screen==="bag")closeSheet();hero.base="camp";hero.expedition=null;combat=null;swing=null;effects=[];$("flash").textContent=msg;persist();hud();if(win){travel={to:"homePortal",p:0};hud()}
 }
 function finishRoom(){
  const r=hero.expedition;xp(6+r.room*2);hero.shards+=1+Math.floor(Math.random()*3);hero.coins+=2;
- if(r.room===(r.total||3)){end(true,"Добыча хранителя");return}
+ if(r.room===(r.total||3)){
+   combat.returnGate={x:clamp(combat.x,35,445),y:combat.y>180?combat.y-48:combat.y+48};
+   combat.mobs=[];combat.task.stones=[];effects=[];swing=null;clearInput();
+   $("flash").textContent="Хранитель повержен · Войди в портал к костру";persist();hud();return
+ }
  const road=combat.road;
  r.lastGoal="Зал пройден · "+roadReward(road);
  if(road.kind===0)r.hp=Math.min(maxHp(),r.hp+(road.elite?20:12));else if(road.kind===1)r.force+=road.elite?4:2;else r.ward+=road.elite?2:1;
@@ -189,6 +220,10 @@ function update(dt){
  let dy=stick.y+Number(keys.has("KeyS")||keys.has("ArrowDown"))-Number(keys.has("KeyW")||keys.has("ArrowUp"));
  const mag=Math.hypot(dx,dy);b.walk=mag>.05;
  b.x=clamp(b.x+dx/Math.max(1,mag)*82*dt,14,466);b.y=clamp(b.y+dy/Math.max(1,mag)*82*dt,16,346);
+ if(b.returnGate){
+   if(Math.hypot(b.x-b.returnGate.x,b.y-b.returnGate.y)<14)end(true,"Добыча хранителя");
+   return
+ }
  if(b.exits){
    const door=b.exits.findIndex(g=>Math.hypot(b.x-g.x,b.y-g.y)<13);
    if(door>=0){r.room++;if(screen==="bag")closeSheet();begin(door);clearInput();$("flash").textContent="";persist()}
@@ -260,6 +295,7 @@ function arenaArt(t){
  for(const [x,y] of [[28,32],[452,32],[28,330],[452,330]]){oval("#243837",x,y+4,10,5);rect("#45494a",x-4,y-12,8,17);glow(x,y-13,26,"#ffb86866");poly("#e7a45f",x-5,y-10,x-4,y-17,x,y-24+Math.sin(t*8)*2,x+5,y-14,x+3,y-10)}
  for(const m of b.mobs)if(m.wind>0){oval("#e66c532e",m.tx,m.ty,m.boss?32:22,m.boss?32:22);ctx.strokeStyle="#ff9b70";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(m.tx,m.ty,m.boss?32:22,0,Math.PI*2);ctx.stroke()}
  if(b.exits)drawDoors(b,r,t);
+ if(b.returnGate)archAt(b.returnGate.x,b.returnGate.y,.85,t,1);
  if(b.task.type==="gather"&&!b.exits){
  for(const stone of b.task.stones){glow(stone.x,stone.y-4,18,"#66fff080");crystal(ctx,stone.x,stone.y-4+Math.sin(t*3)*1.5,.66)}
  const nearest=b.task.stones.reduce((p,s)=>!p||Math.hypot(s.x-b.x,s.y-b.y)<Math.hypot(p.x-b.x,p.y-b.y)?s:p,null);
@@ -270,7 +306,7 @@ function arenaArt(t){
  }
  const units=[...b.mobs,b].sort((a,c)=>a.y-c.y);
  for(const m of units){
- if(m===b){knightAt(b.x,b.y,.49,weapon(),t,b.walk,false,armor().bonus,swing?.life>0?Math.sin(Math.PI*swing.life/.3)*1.45:0);continue}
+ if(m===b){if(arrival>0){archAt(b.x,b.y+1,.65,t,1);ctx.save();ctx.globalAlpha=Math.max(.18,1-arrival/1.4)}knightAt(b.x,b.y,.49,weapon(),t,b.walk,false,armor().bonus,swing?.life>0?Math.sin(Math.PI*swing.life/.3)*1.45:0);if(arrival>0)ctx.restore();continue}
  ctx.save();ctx.translate(m.x,m.y);const s=m.boss?1.42:1;ctx.scale(s,s);if(!m.wind)ctx.translate(0,Math.sin(t*9+m.max)*1.1);
  oval("#1c292a88",0,1,10,4);const coat=m.flash>0?"#ffe6ba":m.boss?"#854850":b.road.elite?"#8e574b":"#526a51";
  poly("#343944",-6,-7,6,-7,8,0,3,1,0,-3,-4,1,-8,1);
@@ -283,7 +319,7 @@ function arenaArt(t){
  ctx.font="bold 11px Georgia";ctx.textAlign="center";for(const e of effects){ctx.fillStyle=e.color;ctx.fillText(String(e.n),e.x,e.y-23-(.55-e.life)*23)}ctx.restore()
 }
 stage.addEventListener("click",e=>{
- if(hero.expedition)return;
+ if(hero.expedition||travel||hero.base==="castle")return;
  const box=stage.getBoundingClientRect(),x=(e.clientX-box.left)/width,y=(e.clientY-box.top)/height;
  if(Math.abs(x-.80)<.085&&y>.40&&y<.60)navigate();
 });
@@ -301,10 +337,14 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)suspend()})
 addEventListener("blur",suspend);addEventListener("pagehide",persist);
 function frame(ms){
  const dt=Math.min(.05,(ms-prev)/1000);prev=ms;
- if(combat&&!layoutDialog.open&&(!dialog.open||screen==="bag")&&!document.hidden)update(dt);
- if(combat)arenaArt(ms/1000);else campArt(ms/1000,hero,ms<raisedUntil);
+ const active=!layoutDialog.open&&!dialog.open&&!document.hidden;
+ if(travel&&active){travel.p=Math.min(1,travel.p+dt/(reducedMotion.matches?.18:1.8));if(travel.p>=1)arrive()}
+ if(arrival>0&&active){arrival=Math.max(0,arrival-dt);if(!arrival)$("locationCard").hidden=true}
+ if(combat&&!arrival&&!layoutDialog.open&&(!dialog.open||screen==="bag")&&!document.hidden)update(dt);
+ if(combat)arenaArt(ms/1000);else if(hero.base==="castle"){arrivalArt(ms/1000,hero,travel?.p||0)}else refugeArt(ms/1000,hero,travel,ms<raisedUntil);
  requestAnimationFrame(frame)
 }
 if(hero.expedition?.battle){combat=hero.expedition.battle;combat.task??={type:"clear",goal:combat.mobs.length,kills:0,found:0,stones:[]};show("pause")}else if(hero.expedition)show("routes");
-applyLayout(savedLayout||"center");if(!savedLayout)openSettings();
+applyLayout(savedLayout||"center");if(!savedLayout&&!hero.expedition)openSettings();
+if(!hero.expedition)enterTitle("Северное пограничье",hero.base==="castle"?"Внутренний двор":"Огонь на переправе");
 hud();requestAnimationFrame(frame);
