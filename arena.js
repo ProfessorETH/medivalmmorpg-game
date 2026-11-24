@@ -132,7 +132,7 @@ content.onclick=e=>{
  if(act==="name"){const s=$("knightName").value.trim();if(s)hero.name=s;show("hero")}
  if(act==="stat"&&hero.points&&["power","agility","mind"].includes(arg)){hero[arg]++;hero.points--;show("hero")}
  if(act==="slot"&&fittings[arg]){bagSlot=arg;show("bag")}
- if(act==="equip"&&!hero.expedition){hero.gear[hero.bag[idx].kind]=idx;raisedUntil=performance.now()+1600;show("bag")}
+ if(act==="equip"&&hero.bag[idx]){hero.gear[hero.bag[idx].kind]=idx;if(hero.expedition)hero.expedition.hp=Math.min(hero.expedition.hp,maxHp());raisedUntil=performance.now()+1600;show("bag")}
  if(act==="wearPrize"){hero.gear[hero.trophy.kind]=hero.trophy.index;raisedUntil=performance.now()+1800;closeSheet()}
  if(act==="retreat"){end(false,"Ты вернулся к костру.");closeSheet()}
  if(act==="close")closeSheet();persist();hud();
@@ -225,6 +225,10 @@ function finishRoom(){
  r.lastGoal="Зал пройден · "+roadReward(road)+extra;
  if(road.kind===0)r.hp=Math.min(maxHp(),r.hp+(road.elite?20:12));else if(road.kind===1)r.force+=road.elite?4:2;else r.ward+=road.elite?2:1;
  const next=r.room+1;r.roads=routes(next,r.total||3);
+ if(r.tier===0&&next===2){
+   const arms=Math.random()<.5?0:1;
+   r.roads[arms].cache="arms";r.roads[1-arms].cache="rune"
+ }
  const cx=clamp(combat.x,85,395),y=combat.y>180?118:235;
  combat.exits=[{x:cx-42,y},{x:cx+42,y}];combat.mobs=[];combat.task.stones=[];
  effects=[];swing=null;clearInput();persist();hud();
@@ -243,7 +247,13 @@ function update(dt){
  }
  if(b.exits){
    const door=b.exits.findIndex(g=>Math.hypot(b.x-g.x,b.y-g.y)<13);
-   if(door>=0){r.room++;if(screen==="bag")closeSheet();begin(door);clearInput();$("flash").textContent="";persist()}
+   if(door>=0){
+     const cache=r.roads[door].cache;
+     let found="";
+     if(cache==="arms"){
+       hero.bag.push(makeItem("weapon","Тесаки ключника",2,"twins"));found="Тесаки ключника · в сумке"
+     }else if(cache==="rune"){r.force+=2;found="Руна натиска · +2 урона до костра"}
+     r.room++;if(screen==="bag")closeSheet();begin(door);clearInput();$("flash").textContent=found;persist()}
    return
  }
  for(const m of b.mobs){
@@ -294,8 +304,14 @@ function drawDoors(b,r,t){
    const mission=contracts[type].name;
    const amount=type==="survive"?goal+" с":"×"+goal;
    const loot=boss?(road.elite?"Вещь +2":"Снаряжение"):["♥ +"+(road.elite?20:12),"Урон +"+(road.elite?4:2),"Защита +"+(road.elite?2:1)][road.kind];
+   if(road.cache){
+    const dx=gate.x-midX;
+    line("#b8a27c",2,-dx,22,0,2);
+    if(road.cache==="arms"){ctx.save();ctx.scale(.48,.48);sword(-9,-8,.4,true,true);sword(7,-8,.4,true,true);ctx.restore()}
+    else{poly("#66ceb6",0,-23,7,-14,0,-5,-7,-14);line("#f3df9f",1,0,-20,0,-8)}
+   }
    const label=road.elite?"Элита · "+loot:loot;
-   rect("#152429f2",-39,-57,78,21);ctx.fillStyle="#f2ede0";ctx.fillText(mission,0,-49,75);ctx.fillStyle=tint;ctx.fillText(label,0,-40,75);ctx.fillStyle="#f6ead7";ctx.fillText(amount,0,-10,24);
+   rect("#152429f2",-39,-57,78,21);ctx.fillStyle="#f2ede0";ctx.fillText(road.cache==="arms"?"Оружейная":road.cache==="rune"?"Алтарь натиска":mission,0,-49,75);ctx.fillStyle=tint;ctx.fillText(road.cache?(road.elite?"Элита · ":"")+(road.cache==="arms"?"Тесаки":"+2 урона"):label,0,-40,75);ctx.fillStyle="#f6ead7";ctx.fillText(amount,0,-10,24);
    ctx.restore()
  }
 }

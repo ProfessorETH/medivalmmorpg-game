@@ -138,8 +138,9 @@ function refugeArt(t,hero,travel,raised){
  if(resting>.35){
   ctx.save();ctx.translate(w*.78,h*.85);ctx.scale(s,s);
   oval("#11152577",0,1,17,3);line("#543b32",3,-12,0,-6,-26);line("#805d46",3,10,0,5,-26);line("#9a7350",3,-12,-23,11,-23);
-  if(hero.bag[hero.gear.weapon].style==="twins"){sword(-6,-21,2.95,true,false);sword(6,-22,3.31,true,false)}
-  else{sword(4,-35,3.30,false,hero.bag[hero.gear.weapon].bonus>2);poly("#b08b61",-18,-19,-10,-21,-3,-16,-6,-5,-13,-1,-18,-8);poly("#8e3449",-16,-17,-10,-19,-5,-15,-8,-6,-13,-3,-16,-9)}
+  const restingWeapon=weapon();
+  if(restingWeapon.style==="twins"){sword(-6,-21,2.95,true,restingWeapon.bonus>1,restingWeapon.name);sword(6,-22,3.31,true,restingWeapon.bonus>1,restingWeapon.name)}
+  else{sword(4,-35,3.30,false,restingWeapon.bonus>1,restingWeapon.name);poly("#b08b61",-18,-19,-10,-21,-3,-16,-6,-5,-13,-1,-18,-8);poly("#8e3449",-16,-17,-10,-19,-5,-15,-8,-6,-13,-3,-16,-9)}
   ctx.restore()
  }
  const x=w*(.53+(tx-.53)*ease),y=h*(.825+(ty-.825)*ease);
