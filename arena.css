@@ -116,3 +116,6 @@ body.wide-mode #field{flex:1;min-height:0;max-height:none;height:auto}
 .forge-blade{display:flex;align-items:center;gap:14px}.forge-blade img{width:68px;height:68px}
 @media(min-width:850px){body:has(#field.courtyard) main,body.at-refuge main{width:96vw;max-width:2100px}body:has(#field.courtyard) #field,body.at-refuge #field{height:min(calc(100dvh - 155px),58vw);min-height:380px}body:has(#field.courtyard) footer button{max-width:none}body:has(#field.courtyard) footer{width:100%}}
 @media(max-width:680px){#smith{left:23%;top:69%}#stairs{top:68%}.courtyard #returnCamp{top:57%}}
+#groundUse{position:absolute;right:2%;bottom:2%;z-index:4;background:#24352fe8;color:#fff2cf;border-color:#a7aa85}
+
+.exploring #portrait{pointer-events:none}

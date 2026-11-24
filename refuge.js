@@ -3,7 +3,7 @@ const campPlate=new Image(),campSeat=new Image(),campFire=new Image();
 campFire.src="camp-fire.webp";
 let plateFile="";
 function selectPlate(w,h){
- const file=w/h<.87?"ford-portrait.webp":w*Math.min(2,devicePixelRatio)>2520?"ford-4k.webp":"ford-wide.webp";
+ const file=w/h<.87?"ford-portrait.webp?v=water2":w*Math.min(2,devicePixelRatio)>2520?"ford-4k.webp?v=water2":"ford-wide.webp?v=water2";
  if(file!==plateFile){plateFile=file;campPlate.src=file}
 }
 campSeat.src="camp-log.webp";
@@ -93,10 +93,12 @@ function arrivalArt(t){
 }
 function refugeArt(t,hero,travel,raised){
  const w=width,h=height,s=Math.min(w/190,h/270);
- drawCampPlate(w,h,hero.level,t);
+ drawCampPlate(w,h,hero.level,t);fordBirds(t);
  const shade=.025+.065*(1-Math.cos(t*Math.PI/90))/2;
  rect("rgba(24,20,19,"+shade+")",0,0,w,h);
  if(hero.level>=10)ferryThreshold(w*.79,h*.765,Math.min(w/320,h/450),t,travel?.to==="portal"?travel.p:0);
+ const behind=!travel&&walker&&walker.y<.89;
+ if(behind)drawWalker(t,s);
  const kindle=travel?.relight?journeyPhase(1-travel.boat,.81,.96):1;
  ctx.save();ctx.globalAlpha=kindle;
  const fx=w*.53-36*s,fy=h*.889;glow(fx,fy-8,s*40,"#ffb45f80");
@@ -112,7 +114,7 @@ function refugeArt(t,hero,travel,raised){
  const p=returning?1-travel.p:travel?.p||0,walk=Math.min(1,Math.max(0,(p-.22)/.66)),ease=walk*walk*(3-2*walk);
  const portal=returning||travel?.to==="portal",tx=portal ? .79 : gatePosition(w,h).x,ty=portal?.765:gatePosition(w,h).y;
  const resting=Math.max(0,1-p/.22);
- if(resting>.35&&(travel?.boat??0)<.09){
+ if(!walker&&resting>.35&&(travel?.boat??0)<.09){
   ctx.save();ctx.translate(w*.53+48*s,h*.93);ctx.scale(s,s);
   oval("#11152577",0,1,17,3);line("#543b32",3,-12,0,-6,-26);line("#805d46",3,10,0,5,-26);line("#9a7350",3,-12,-23,11,-23);
   const restingWeapon=weapon();
@@ -120,9 +122,10 @@ function refugeArt(t,hero,travel,raised){
   else{sword(4,-35,3.30,false,restingWeapon.bonus>1,restingWeapon.name);poly("#b08b61",-18,-19,-10,-21,-3,-16,-6,-5,-13,-1,-18,-8);poly("#8e3449",-16,-17,-10,-19,-5,-15,-8,-6,-13,-3,-16,-9)}
   ctx.restore()
  }
- if(travel?.boat!==undefined){boatPass(t,hero,travel.boat);return}
+ if(travel?.boat!==undefined){boatPass(t,hero,travel.boat,travel.reverse);return}
  const dock=mooring(w,h);
- drawSkiff(dock.x,dock.y,s*.82,t,false,false);
+ drawSkiff(dock.x,dock.y,s*.82,t,false,false,false,true);
+ if(behind||(!travel&&drawWalker(t,s)))return;
  const x=w*(.53+(tx-.53)*ease),y=h*(.91+(ty-.91)*ease);
  const vanish=Math.max(0,(p-.85)/.15);
  ctx.save();ctx.globalAlpha=1-vanish;

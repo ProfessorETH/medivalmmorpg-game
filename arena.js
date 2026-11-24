@@ -30,7 +30,7 @@ function enterTitle(label,name){
 }
 function depart(to,road){
  if(travel||combat)return;
- travel={to,road,p:0,fromSmith:atAnvil};atAnvil=false;clearInput();closeSheet();hud()
+ travel={to,road,p:0,fromSmith:atAnvil,origin:walker?{...walker}:null};resetGround();atAnvil=false;clearInput();closeSheet();hud()
 }
 function arrive(){
  const {to,road}=travel;travel=null;
@@ -76,6 +76,7 @@ function hud(){
  $("hint").textContent=r?"Движение: джойстик, WASD или стрелки. Удары и руна срабатывают сами.":"Коснись рыцаря, чтобы осмотреть его, или выбери дорогу.";
  if(combat&&r.tier===0)$("hint").textContent="Движение — джойстик или WASD. Рывок — кнопка или пробел. Для выбора дара пройди через знак.";
  if(!r)$("hint").textContent=!courtyard?"У переправы ждёт лодка. За воротами работает кузнец Радан.":!hero.metSmith?"Подойди к наковальне. Радан подготовит клинок к первому поручению.":chapters[hero.chapter]?"Глава "+(hero.chapter+1)+" · "+chapters[hero.chapter].title+" · Спуск под красным знаменем.":"Дорога свободна. Разломы открываются с 10-го уровня.";
+ if(!r&&!travel)$("hint").textContent+=" Бег — WASD или стрелки. На телефоне коснись земли или веди пальцем.";
  if(r?.mode==="story")$("area").textContent="Глава "+(r.tier+1)+" · "+chapters[r.tier].title+" · Зал "+r.room+"/"+r.total;
  if(r?.mode==="rift")$("area").textContent+=" · Глубина "+r.depth;
 }
@@ -413,14 +414,19 @@ function arenaArt(t){
  ctx.font="bold 11px Georgia";ctx.textAlign="center";for(const e of effects){ctx.fillStyle=e.color;ctx.fillText(String(e.n),e.x,e.y-23-(.55-e.life)*23)}ctx.restore()
 }
 stage.addEventListener("click",e=>{
- if(hero.expedition||travel||hero.base==="castle")return;
+ if(!canExplore()||performance.now()-dragEnded<200)return;
  const box=stage.getBoundingClientRect(),x=(e.clientX-box.left)/width,y=(e.clientY-box.top)/height;
  const dock=mooring(width,height);
- if(Math.abs(x-dock.x/width)<.09&&Math.abs(y-dock.y/height)<.035){depart("castle");return}
- if(hero.level>=10&&Math.abs(x-.80)<.085&&y>.67&&y<.78)$("portal").click();
+ if(!inYard()&&Math.abs(x-dock.x/width)<.09&&Math.abs(y-dock.y/height)<.035){depart("castle");return}
+ if(!inYard()&&hero.level>=10&&Math.abs(x-.80)<.085&&y>.67&&y<.78){$("portal").click();return}
+ const bell=bellPoint();
+ if(!inYard()&&Math.hypot(x*width-bell.x,y*height-bell.y)<Math.max(23,width*.034)){ringFordBell();return}
+ if(y>=floorEdge(x)-.025)groundGoal={x:clamp(x,.05,.95),y:clamp(y,floorEdge(x),.98)};
 });
+$("groundUse").onclick=useGround;
+addEventListener("keydown",e=>{if(e.code==="KeyE"&&!e.repeat)useGround()});
 const controls=["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
-addEventListener("keydown",e=>{if(!combat||layoutDialog.open||(dialog.open&&screen!=="bag")||!controls.includes(e.code))return;e.preventDefault();keys.add(e.code)});
+addEventListener("keydown",e=>{if((!combat&&!canExplore())||layoutDialog.open||(dialog.open&&screen!=="bag")||!controls.includes(e.code))return;e.preventDefault();keys.add(e.code)});
 addEventListener("keydown",e=>{if(e.code==="Space"&&combat&&!dialog.open&&!layoutDialog.open){e.preventDefault();if(!e.repeat)dash()}});
 addEventListener("keyup",e=>keys.delete(e.code));
 const pad=$("stick");
@@ -435,6 +441,7 @@ addEventListener("blur",suspend);addEventListener("pagehide",persist);
 function frame(ms){
  const dt=Math.min(.05,(ms-prev)/1000);prev=ms;
  const active=!layoutDialog.open&&!dialog.open&&!document.hidden;
+ if(active&&!combat&&!travel)moveOnGround(dt);
  if(travel&&active){travel.p=Math.min(1,travel.p+dt/(reducedMotion.matches?.3:travel.to==="castle"||travel.to==="camp"||travel.to==="storyHome"?6.7:travel.to==="homePortal"?3.6:2.2));if(travel.p>=1)arrive()}
  if(arrival>0&&active){arrival=Math.max(0,arrival-dt);if(!arrival)$("locationCard").hidden=true}
  if(combat&&!arrival&&!layoutDialog.open&&(!dialog.open||screen==="bag")&&!document.hidden)update(dt);
