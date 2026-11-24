@@ -80,3 +80,9 @@ body.at-refuge{background:#101422;color:#eae8e7}
 .at-refuge header .sigil:after{inset:3px 12px auto;height:5px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
 .equipment-sheet h3{font:600 17px Georgia,serif;margin:10px 0}.paperdoll{display:grid;grid-template-columns:minmax(60px,1fr) minmax(80px,1.7fr) minmax(60px,1fr);grid-template-rows:repeat(4,54px);gap:4px;align-items:stretch;background:radial-gradient(ellipse,#343d54,#161e2d 70%);padding:8px;border:1px solid #4c5364}
 #paperKnight{grid-column:2;grid-row:1/5;width:100%;height:100%;object-fit:contain}.socket{padding:2px!important;min-height:44px;display:grid;grid-template-columns:1fr;justify-items:center;align-content:center;margin:0;background:#1c2433}.socket:nth-of-type(odd){grid-column:1}.socket:nth-of-type(even){grid-column:3}.socket img{height:30px}.socket span{font-size:11px}.socket.empty img{opacity:.42}.socket[aria-pressed=true]{border-color:#edc486;background:#333644}.gear-item{display:flex;gap:8px;align-items:center;border-top:1px solid #454c59;padding:7px 0;font-size:13px}.gear-item img{width:39px}.gear-item div{flex:1}.gear-item strong,.gear-item span{display:block}.gear-item span{color:#bec8d3}.equipment-sheet.live-bag{max-height:48dvh}
+
+#dash{position:absolute;z-index:3;bottom:calc(var(--dock,112px) + 6px);right:12px;background:#253947;color:#f0cd98;touch-action:manipulation}
+#field[data-layout=right] #dash{right:auto;left:12px}
+#dash:disabled{opacity:.55}
+
+@media(min-width:720px) and (min-height:481px){.fighting #objective{left:auto;right:76px;top:12px}}

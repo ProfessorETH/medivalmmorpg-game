@@ -50,6 +50,8 @@ function hud(){
  $("gold").textContent="◈ "+hero.coins;
  $("vitals").textContent=r?"♥ "+Math.ceil(r.hp)+"/"+maxHp()+"　✦ "+r.energy+"/3"+(combat?"　Враги: "+combat.mobs.length:""):hero.name+"　·　ур. "+hero.level;
  $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat||!!combat.exits||!!combat.returnGate;if(combat&&!combat.exits&&!combat.returnGate)goalHud();
+ $("dash").hidden=!combat||r?.tier!==0;
+ if(r?.boons){const marks=Object.entries(r.boons).map(([kind,n])=>sigils[kind].name+" "+n);$("vitals").textContent+="　"+marks.join(" · ")}
  $("belt").hidden=!combat;if(combat)flaskHud();
  const courtyard=hero.base==="castle"&&!r;
  document.body.classList.toggle("at-refuge",!r&&!courtyard);
@@ -62,6 +64,7 @@ function hud(){
  $("pause").hidden=!combat;$("stick").hidden=!combat;
  $("venture").textContent=courtyard?"↩　К костру":r?"✧　Поход":"⚔　В поход";
  $("hint").textContent=r?"Движение: джойстик, WASD или стрелки. Удары и руна срабатывают сами.":"Коснись рыцаря, чтобы осмотреть его, или выбери дорогу.";
+ if(combat&&r.tier===0)$("hint").textContent="Движение — джойстик или WASD. Рывок — кнопка или пробел. Для выбора дара пройди через знак.";
  if(courtyard)$("hint").textContent="Осмотри рыцаря и снаряжение во дворе замка.";
 }
 function clearInput(){keys.clear();pointer=null;stick={x:0,y:0};$("stick").firstElementChild.style.transform=""}
@@ -152,6 +155,7 @@ function drink(type){
  r.flasks[type]--;effect(combat.x,combat.y,type==="heal"?"+♥":"+✦",type==="heal"?"#ffa698":"#9adbff");
  persist();hud()
 }
+$("dash").onclick=dash;
 $("healFlask").onclick=()=>drink("heal");$("manaFlask").onclick=()=>drink("mana");
 $("battleBag").onclick=()=>screen==="bag"?closeSheet():show("bag");
 function begin(idx){
@@ -215,6 +219,7 @@ function finishRoom(){
    combat.mobs=[];combat.task.stones=[];effects=[];swing=null;clearInput();
    $("flash").textContent="Хранитель повержен · Войди в портал к костру";persist();hud();return
  }
+ if(r.tier===0)scatterSigils(combat);
  const road=combat.road;
  let extra="";
  if(r.room===1||r.room===3){
@@ -240,6 +245,15 @@ function update(dt){
  let dx=stick.x+Number(keys.has("KeyD")||keys.has("ArrowRight"))-Number(keys.has("KeyA")||keys.has("ArrowLeft"));
  let dy=stick.y+Number(keys.has("KeyS")||keys.has("ArrowDown"))-Number(keys.has("KeyW")||keys.has("ArrowUp"));
  const mag=Math.hypot(dx,dy);b.walk=mag>.05;
+ if(b.walk)b.heading=Math.atan2(dy,dx);
+ if(r.tier===0){
+   b.rest=Math.max(0,(b.rest||0)-dt);$("dash").disabled=b.rest>0;
+   if(b.burst>0){
+     const step=Math.min(dt,b.burst)*325;b.burst-=dt;
+     b.x=clamp(b.x+step*Math.cos(b.dashAngle),14,466);b.y=clamp(b.y+step*Math.sin(b.dashAngle),16,346)
+   }
+   takeSigil(b,r)
+ }
  b.x=clamp(b.x+dx/Math.max(1,mag)*82*dt,14,466);b.y=clamp(b.y+dy/Math.max(1,mag)*82*dt,16,346);
  if(b.returnGate){
    if(Math.hypot(b.x-b.returnGate.x,b.y-b.returnGate.y)<14)end(true,"Добыча хранителя");
@@ -259,7 +273,7 @@ function update(dt){
  for(const m of b.mobs){
  if(m.species){
    const raw=wardStep(m,b,dt);
-   if(raw){const hit=Math.max(1,raw+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;effect(b.x,b.y,-hit,"#ff9a83");hud()}
+   if(raw&&!(b.burst>0)){const hit=Math.max(1,raw+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;effect(b.x,b.y,-hit,"#ff9a83");hud()}
    continue
  }
  m.delay-=dt;m.flash=Math.max(0,(m.flash||0)-dt);const vx=b.x-m.x,vy=b.y-m.y,dist=Math.hypot(vx,vy);
@@ -274,10 +288,16 @@ function update(dt){
  const twin=weapon().style==="twins",range=twin?42:54;
  if(target&&Math.hypot(target.x-b.x,target.y-b.y)<=range&&b.cooldown<=0){
  const rune=r.energy>=3,crit=Math.random()<Math.min(.55,.04*hero.agility+(twin?.12:0));
- const hit=(3+weapon().bonus+hero.power+r.force)*(crit?2:1)+(rune?4+hero.mind*2:0);
- b.dir=Math.atan2(target.y-b.y,target.x-b.x);swing={angle:b.dir,life:.3,rune,range};b.cooldown=twin?.43:.72;r.energy=rune?0:r.energy+1;
- for(const m of b.mobs){if(m!==target&&(!rune||Math.hypot(m.x-b.x,m.y-b.y)>72))continue;m.hp-=hit;m.flash=.16;effect(m.x,m.y,hit,rune?"#8ef6ef":crit?"#ffd376":"#f5e7c7")}
+ const proc=buildStrike(r,b);
+ const hit=proc.impact+(3+weapon().bonus+hero.power+r.force)*(crit?2:1)+(rune?4+hero.mind*2:0);
+ b.dir=Math.atan2(target.y-b.y,target.x-b.x);swing={angle:b.dir,life:.3,rune:rune||proc.discharge,range};b.cooldown=twin?.43:.72;r.energy=rune?0:r.energy+1;
+ for(const m of b.mobs){const nearby=Math.hypot(m.x-target.x,m.y-target.y)<=64;
+ const chain=proc.discharge&&nearby?3*r.boons.spark:0;
+ const direct=m===target||(rune&&Math.hypot(m.x-b.x,m.y-b.y)<=72);
+ if(!direct&&!chain)continue;
+ const damage=(direct?hit:0)+chain;m.hp-=damage;m.flash=.16;effect(m.x,m.y,damage,(chain||rune)?"#8ef6ef":crit?"#ffd376":"#f5e7c7")}
  const dead=b.mobs.filter(m=>m.hp<=0);
+ if(dead.length&&r.tier===0&&!dead.some(m=>m.boss))scatterSigils(b);
  b.task.kills+=b.task.type==="boss"?dead.filter(m=>m.boss).length:dead.length;
  b.mobs=b.mobs.filter(m=>m.hp>0);hud();
  }
@@ -334,6 +354,7 @@ function arenaArt(t){
  for(const [x,y] of [[28,32],[452,32],[28,330],[452,330]]){oval("#243837",x,y+4,10,5);rect("#45494a",x-4,y-12,8,17);glow(x,y-13,26,"#ffb86866");poly("#e7a45f",x-5,y-10,x-4,y-17,x,y-24+Math.sin(t*8)*2,x+5,y-14,x+3,y-10)}
  }
  for(const m of b.mobs)if(m.species)wardMark(m);else if(m.wind>0){oval("#e66c532e",m.tx,m.ty,m.boss?32:22,m.boss?32:22);ctx.strokeStyle="#ff9b70";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(m.tx,m.ty,m.boss?32:22,0,Math.PI*2);ctx.stroke()}
+ drawSigils(b,t);
  if(b.exits)drawDoors(b,r,t);
  if(b.returnGate)archAt(b.returnGate.x,b.returnGate.y,.85,t,1);
  if(b.task.type==="gather"&&!b.exits){
@@ -346,7 +367,7 @@ function arenaArt(t){
  }
  const units=[...b.mobs,b].sort((a,c)=>a.y-c.y);
  for(const m of units){
- if(m===b){if(arrival>0){archAt(b.x,b.y+1,.65,t,1);ctx.save();ctx.globalAlpha=Math.max(.18,1-arrival/1.4)}knightAt(b.x,b.y,.49,weapon(),t,b.walk,false,armor().bonus,swing?.life>0?Math.sin(Math.PI*swing.life/.3)*1.45:0);if(arrival>0)ctx.restore();continue}
+ if(m===b){if(arrival>0){archAt(b.x,b.y+1,.65,t,1);ctx.save();ctx.globalAlpha=Math.max(.18,1-arrival/1.4)}ctx.save();ctx.translate(b.x,b.y);if(Math.cos(b.heading??0)<-.05)ctx.scale(-1,1);if(b.burst>0){line("#f4d9a9",2,-22,-12,-9,-14);line("#aed5ca",1,-28,-9,-12,-9)}knightAt(0,0,.56,weapon(),t,b.walk,false,armor().bonus,swing?.life>0?Math.sin(Math.PI*swing.life/.3)*1.45:0);ctx.restore();if(arrival>0)ctx.restore();continue}
  if(m.species){wardCreature(m,t);continue}
  ctx.save();ctx.translate(m.x,m.y);const s=m.boss?1.42:1;ctx.scale(s,s);if(!m.wind)ctx.translate(0,Math.sin(t*9+m.max)*1.1);
  oval("#1c292a88",0,1,10,4);const coat=m.flash>0?"#ffe6ba":m.boss?"#854850":b.road.elite?"#8e574b":"#526a51";
@@ -366,6 +387,7 @@ stage.addEventListener("click",e=>{
 });
 const controls=["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
 addEventListener("keydown",e=>{if(!combat||layoutDialog.open||(dialog.open&&screen!=="bag")||!controls.includes(e.code))return;e.preventDefault();keys.add(e.code)});
+addEventListener("keydown",e=>{if(e.code==="Space"&&combat&&hero.expedition.tier===0&&!dialog.open&&!layoutDialog.open){e.preventDefault();if(!e.repeat)dash()}});
 addEventListener("keyup",e=>keys.delete(e.code));
 const pad=$("stick");
 function moveStick(e){if(e.pointerId!==pointer)return;const box=pad.getBoundingClientRect(),dx=e.clientX-box.left-box.width/2,dy=e.clientY-box.top-box.height/2;

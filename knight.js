@@ -21,9 +21,9 @@ function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=
   face(layers.at(-1),color)
  }
  const enamel=[56,146,139], copper=[190,127,73], ivory=[214,199,152];
- const stride=walking?Math.sin(time*11):0,hip=34-14*seated,torso=hip+2+Math.sin(time*2)*.35;
+ const stride=walking?Math.sin(time*11):0,hip=34-14*seated+Math.abs(stride)*1.5,torso=hip+2+Math.sin(time*2)*.35;
  for(const sign of [-1,1]){
-  const a=sign*5.6,footY=-(26+sign*4)*seated+stride*sign*5;
+  const a=sign*5.6,footY=-(26+sign*4)*seated+stride*sign*11;
   shell(a,footY,[[.4,4,6,-2],[2.7,4.3,7,-2],[5,3.1,4]],dark);
   shell(a,footY,[[4,2.8,3],[8,3.3,3.4],[15,4.2,4,2],[18,3.6,3.8,2]],iron,8);
   shell(a,footY+2,[[15,3.7,3.7],[18,4.5,4.6],[20,3.2,3.4]],edge,8);
@@ -36,7 +36,7 @@ function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=
  // The split mantle has deep folds behind the shoulders.
  for(let i=0;i<7;i++){
   const u=i/7,v=(i+1)/7;
-  const hem=k=>[-16+32*k,8+(k%1)*3+Math.sin(k*22)*2,hip-(mantle?28:20)+seated*13+Math.sin(k*21)*2];
+  const hem=k=>[-16+32*k,8+(k%1)*3+Math.sin(k*22+time*3)*2+(walking?12:0),hip-(mantle?28:20)+seated*13+Math.sin(k*21)*2];
   face([[-10+20*u,5,torso+23],hem(u),hem(v),[-10+20*v,5,torso+23]],mantle?(i%2?[32,87,85]:enamel):(i%2?fold:red))
  }
  shell(0,0,[[hip-6,10,6],[hip,10,6.5],[hip+3,9,6]],dark);
@@ -69,6 +69,13 @@ function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=
   if(gauntlets)shell(a+sign*2.1,-3-10*seated,[[torso+2,4,4.1],[torso+6,4.8,4.6]],brass,8);
   if(sign===1&&worn("ring"))shell(a+sign*2.4,-4-14*seated,[[torso-6.4,3.4,3.7],[torso-4.4,3.7,3.8]],enamel,8)
  }
+ // An asymmetric heraldic tabard with a split hem and a stitched pale chevron.
+ const cloth=mantle?enamel:red;
+ const hem=hip-9+6*seated;
+ face([[-7,-7.4,hip],[6,-7.6,hip],[7,-8,hem-1],[1,-8.7,hem-5],[-1,-8.7,hem],[-6,-8,hem-3]],cloth);
+ face([[-5,-8.6,hem+3],[0,-9,hem],[5,-8.6,hem+3],[1,-9,hem-2]],ivory);
+ shell(-13,0,[[torso+16,6.6,6.6],[torso+21,7.4,7],[torso+24,4,4]],iron,8);
+ shell(-13,0,[[torso+16,6.8,6.8],[torso+17.5,7,7]],brass,8);
  const neck=torso+22;
  shell(0,0,[[neck-3,6,5],[neck,7,5.6],[neck+1,6,5.2]],dark);
  shell(0,0,[[neck,5.6,5],[neck+5,8,7],[neck+12,8.2,7.3],[neck+17,6.6,6.1],[neck+20,2.6,3.1]],iron,12);
@@ -86,7 +93,7 @@ function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=
  }
  else for(let i=0;i<5;i++){
   const a=(i-2)*1.4,wave=Math.sin(time*2+i*.65)*1.2;
-  face([[a,0,neck+19],[a-1,1,neck+23],[a+4,6,neck+26-i*.4],[a+8,12,neck+25],[a+9+wave,15,neck+14-i],[a+4,10,neck+21]],i%2?red:fold)
+  face([[a,0,neck+19],[a-1,1,neck+23],[a+4,6,neck+26-i*.4],[a+8,12,neck+25],[a+11+wave,walking?27:20,neck+12-i],[a+4,10,neck+21]],i%2?red:fold)
  }
  if(weapon.style!=="twins"&&seated<.35){
   const sx=-15,front=-9,mid=torso+4;
