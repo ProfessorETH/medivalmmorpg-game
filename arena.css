@@ -101,3 +101,7 @@ body.wide-mode #field{flex:1;min-height:0;max-height:none;height:auto}
 .wide-mode header,.wide-mode footer{flex-shrink:0}.wide-mode #hint{margin:0}
 @media(min-width:1000px){.at-refuge main{max-width:1440px}.at-refuge #field{height:clamp(400px,calc(100dvh - 163px),900px)}}
 @media(max-width:460px){header{gap:5px}header strong{font-size:clamp(14px,4vw,18px)}#settings{padding:4px 7px}}
+
+.at-refuge #portal{top:77%}.at-refuge #portal:before{background:#a1c6b8}.at-refuge .hud{background:linear-gradient(180deg,#242f32db,transparent)}
+
+.at-refuge #portrait{top:69%;height:24%}

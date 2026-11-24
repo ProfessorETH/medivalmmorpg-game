@@ -33,9 +33,9 @@ function depart(to,road){
 }
 function arrive(){
  const {to,road}=travel;travel=null;
- if(to==="homePortal"){hero.base="camp";enterTitle("Возвращение","Огонь на переправе");show("prize");persist();hud();return}
+ if(to==="homePortal"){hero.base="camp";enterTitle("Возвращение","Колокольный брод");show("prize");persist();hud();return}
  if(to==="portal"){hero.base="camp";begin(road)}
- else{hero.base=to;enterTitle("Северное пограничье",to==="castle"?"Внутренний двор":"Огонь на переправе")}
+ else{hero.base=to;enterTitle("Северное пограничье",to==="castle"?"Внутренний двор":"Колокольный брод")}
  persist();hud()
 }
 let keys=new Set(),stick={x:0,y:0},pointer=null,screen="",combat=null,effects=[],swing=null,prev=0,saveTime=0;
@@ -58,7 +58,7 @@ function hud(){
  $("field").classList.toggle("travelling",!!travel);
  for(const id of ["portrait","portal","keep"])$(id).hidden=!!r||courtyard||!!travel;
  $("returnCamp").hidden=!courtyard||!!travel;
- $("title").textContent=r?zoneNames[r.tier]:courtyard?"Внутренний двор":"Огонь на переправе";
+ $("title").textContent=r?zoneNames[r.tier]:courtyard?"Внутренний двор":"Колокольный брод";
  if(!r)$("area").textContent=courtyard?"Замок переправы":"Северное пограничье · лагерь";
  for(const id of ["venture","character","inventory","settings"])$(id).disabled=!!travel;
  $("pause").hidden=!combat;$("stick").hidden=!combat;
@@ -391,7 +391,7 @@ function arenaArt(t){
 stage.addEventListener("click",e=>{
  if(hero.expedition||travel||hero.base==="castle")return;
  const box=stage.getBoundingClientRect(),x=(e.clientX-box.left)/width,y=(e.clientY-box.top)/height;
- if(Math.abs(x-.80)<.085&&y>.40&&y<.60)navigate();
+ if(Math.abs(x-.80)<.085&&y>.67&&y<.78)navigate();
 });
 const controls=["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
 addEventListener("keydown",e=>{if(!combat||layoutDialog.open||(dialog.open&&screen!=="bag")||!controls.includes(e.code))return;e.preventDefault();keys.add(e.code)});
@@ -417,5 +417,5 @@ function frame(ms){
 }
 if(hero.expedition?.battle){combat=hero.expedition.battle;combat.task??={type:"clear",goal:combat.mobs.length,kills:0,found:0,stones:[]};show("pause")}else if(hero.expedition)show("routes");
 applyLayout(savedLayout||"center");if(!savedLayout&&!hero.expedition)openSettings();
-if(!hero.expedition)enterTitle("Северное пограничье",hero.base==="castle"?"Внутренний двор":"Огонь на переправе");
+if(!hero.expedition)enterTitle("Северное пограничье",hero.base==="castle"?"Внутренний двор":"Колокольный брод");
 hud();requestAnimationFrame(frame);
