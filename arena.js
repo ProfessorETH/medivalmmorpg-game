@@ -45,6 +45,7 @@ function hud(){
  $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat||!!combat.exits||!!combat.returnGate;if(combat&&!combat.exits&&!combat.returnGate)goalHud();
  $("belt").hidden=!combat;if(combat)flaskHud();
  const courtyard=hero.base==="castle"&&!r;
+ document.body.classList.toggle("at-refuge",!r&&!courtyard);
  $("field").classList.toggle("travelling",!!travel);
  for(const id of ["portrait","portal","keep"])$(id).hidden=!!r||courtyard||!!travel;
  $("returnCamp").hidden=!courtyard||!!travel;
