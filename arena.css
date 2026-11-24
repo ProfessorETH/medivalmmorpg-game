@@ -105,3 +105,7 @@ body.wide-mode #field{flex:1;min-height:0;max-height:none;height:auto}
 .at-refuge #portal{top:77%}.at-refuge #portal:before{background:#a1c6b8}.at-refuge .hud{background:linear-gradient(180deg,#242f32db,transparent)}
 
 .at-refuge #portrait{top:69%;height:24%}
+
+#returnCamp{left:15%;bottom:12%}
+
+#field.courtyard #portal{left:77%;top:65%;right:auto;transform:translateX(-50%)}

@@ -77,14 +77,28 @@ function ferryThreshold(x,y,scale,t,charge){
  }
  ctx.restore()
 }
-function arrivalArt(t,hero,p=0){
- const w=width,h=height;
- const back=ctx.createLinearGradient(0,0,0,h);back.addColorStop(0,"#213342");back.addColorStop(1,"#747369");rect(back,0,0,w,h);
- for(let y=0;y<h*.57;y+=18)for(let x=-32;x<w;x+=34){rect("#4b5c64",x+(y%36?17:0),y,32,16);rect("#6c777b",x+(y%36?17:0),y,32,2)}
- const scale=Math.min(w/100,h/170);archAt(w*.5,h*.55,scale,t,0,true);
- for(const x of [w*.22,w*.78]){rect("#312e31",x-3,h*.46,6,18);glow(x,h*.46,32,"#ffba6777");poly("#f7b66b",x-6,h*.46,x,h*.46-16+Math.sin(t*6)*2,x+6,h*.46)}
- poly("#834f4d",w*.43,h*.54,w*.57,h*.54,w*.77,h,w*.23,h);
- knightAt(w*.5,h*(.69-.14*p),Math.min(w/215,h/275)*(1-.6*p),hero.bag[hero.gear.weapon],t,p>0,false,hero.bag[hero.gear.armor].bonus)
+const wardYard=new Image();
+function arrivalArt(t){
+ const w=width,h=height,s=Math.min(w/210,h/300);
+ if(!wardYard.src)wardYard.src="camp-gate.webp";
+ rect("#38413e",0,0,w,h);
+ if(wardYard.naturalWidth){
+   const scale=Math.max(w/wardYard.width,h/wardYard.height);
+   const dw=wardYard.width*scale,dh=wardYard.height*scale;
+   ctx.drawImage(wardYard,(w-dw)/2,Math.min(0,Math.max(h-dh,h*.55-dh*.54)),dw,dh)
+ }
+ // A watchman's awning hangs over the near wall. Its loose edge lifts in the wind.
+ ctx.save();ctx.translate(w*.18,h*.70);ctx.scale(s,s);
+ const breeze=reducedMotion.matches?0:Math.sin(t*1.8)*1.2;
+ line("#5f4d39",2.4,-28,0,-27,-33);line("#524633",2.4,19,1,20,-28);
+ poly("#656452",-31,-33,-15,-46,16,-42,24,-28,14,-29+breeze,7,-28,0,-31,-9,-30+breeze);
+ poly("#8a8166",-31,-33,-15,-46,16,-42,3,-37);
+ line("#a39b7f",.8,-31,-33,-40,4);line("#a39b7f",.8,23,-28,30,3);
+ for(const offset of [-13,0]){
+   rect("#665039",offset,-11,10,11);rect("#8c7453",offset,-11,10,2);
+   line("#3e3931",1.4,offset,-7,offset+10,-7)
+ }
+ ctx.restore()
 }
 function refugeArt(t,hero,travel,raised){
  const w=width,h=height,s=Math.min(w/190,h/270);
@@ -105,7 +119,7 @@ function refugeArt(t,hero,travel,raised){
  const p=returning?1-travel.p:travel?.p||0,walk=Math.min(1,Math.max(0,(p-.22)/.66)),ease=walk*walk*(3-2*walk);
  const portal=returning||travel?.to==="portal",tx=portal ? .79 : gatePosition(w,h).x,ty=portal?.765:gatePosition(w,h).y;
  const resting=Math.max(0,1-p/.22);
- if(resting>.35){
+ if(resting>.35&&(travel?.boat??0)<.09){
   ctx.save();ctx.translate(w*.53+48*s,h*.93);ctx.scale(s,s);
   oval("#11152577",0,1,17,3);line("#543b32",3,-12,0,-6,-26);line("#805d46",3,10,0,5,-26);line("#9a7350",3,-12,-23,11,-23);
   const restingWeapon=weapon();
@@ -113,6 +127,9 @@ function refugeArt(t,hero,travel,raised){
   else{sword(4,-35,3.30,false,restingWeapon.bonus>1,restingWeapon.name);poly("#b08b61",-18,-19,-10,-21,-3,-16,-6,-5,-13,-1,-18,-8);poly("#8e3449",-16,-17,-10,-19,-5,-15,-8,-6,-13,-3,-16,-9)}
   ctx.restore()
  }
+ if(travel?.boat!==undefined){boatPass(t,hero,travel.boat);return}
+ const dock=mooring(w,h);
+ drawSkiff(dock.x,dock.y,s*.82,t,false,false);
  const x=w*(.53+(tx-.53)*ease),y=h*(.91+(ty-.91)*ease);
  const vanish=Math.max(0,(p-.85)/.15);
  ctx.save();ctx.globalAlpha=1-vanish;
