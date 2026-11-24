@@ -3,7 +3,7 @@
 // Coordinates are in model space: the face and the shield point toward negative Y.
 function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=0,seated=0){
  const faces=[],yaw=-.46-.62*seated,sy=Math.sin(yaw),cy=Math.cos(yaw);
- const shade=(rgb,n)=>"rgb("+rgb.map((v,i)=>Math.min(255,Math.round(v*(.63+.46*n)+(i===0?12:4)*Math.max(0,n)))).join(",")+")";
+ const shade=(rgb,n)=>"rgb("+rgb.map((v,i)=>Math.min(255,Math.round(v*(.63+.46*n)+(i===0?12+seated*36:i===1?4+seated*11:4)*Math.max(0,n)))).join(",")+")";
  const worn=kind=>hero.bag[hero.gear[kind]];
  const helm=worn("head")?.bonus>0, mantle=worn("cloak")?.bonus>0, gauntlets=worn("hands")?.bonus>0, boots=worn("feet")?.bonus>0;
  const plate=worn("armor")?.name;
@@ -103,7 +103,7 @@ function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=
   face(outline.map(([a,b])=>shield(a*.81,b*.83,-1)),red);
   face([shield(-3,3,-2),shield(1,1,-2),shield(4,5,-2),shield(2,-1,-2),shield(0,-4,-2)],edge)
  }
- ctx.save();ctx.translate(x,y);ctx.scale(size,size);oval("#090e1d80",0,1,18,4);
+ ctx.save();ctx.translate(x,y);ctx.scale(size,size);if(seated<.5)oval("#090e1d80",0,1,18,4);
  faces.sort((a,b)=>b.z-a.z);
  for(const f of faces)poly(f.color,...f.p.flatMap(p=>p.slice(0,2)));
  if(seated>.35){ctx.restore();return}
