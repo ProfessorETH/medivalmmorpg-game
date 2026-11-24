@@ -7,7 +7,10 @@ const wardFoes={
 };
 function attackArea(m,b){
  const a=wardFoes[m.species],angle=Math.atan2(b.y-m.y,b.x-m.x);
- if(m.species==="bell")return {x:b.x,y:b.y,radius:a.radius};
+ if(m.species==="bell"){
+   const lead=b.walk&&(m.order===1||m.rift)?15:0;
+   return {x:b.x+lead*Math.cos(b.heading||0),y:b.y+lead*Math.sin(b.heading||0),radius:a.radius}
+ }
  if(m.species==="keeper"&&m.turn%2===1)return {x:m.x,y:m.y,radius:a.radius};
  return {x:m.x,y:m.y,angle,length:a.length,width:a.width}
 }
@@ -24,9 +27,12 @@ function wardStep(m,b,dt){
    if(m.wind)return 0;
    const hit=inArea(m.area,b.x,b.y);m.impact=.22;m.delay=m.boss?1.1:.86;m.turn++;
    if(m.species==="hound"){m.x=clamp(m.x+Math.cos(m.area.angle)*33,14,466);m.y=clamp(m.y+Math.sin(m.area.angle)*33,16,346)}
-   return hit?a.damage:0
+   return hit?a.damage+Math.min(8,m.rift||0):0
  }
  if(m.impact)return 0;
+ if((m.rift||m.order===2)&&m.species==="pike"&&d>34&&d<110&&m.delay>0){
+   m.x=clamp(m.x-dy/d*19*dt,14,466);m.y=clamp(m.y+dx/d*19*dt,16,346)
+ }
  const reach=m.species==="keeper"&&m.turn%2?36:a.reach;
  if(d<reach&&m.delay<=0){m.area=attackArea(m,b);m.wind=a.wind;m.facing=Math.sign(dx)||1}
  else if(d>reach*.6){m.x+=dx/d*a.speed*dt;m.y+=dy/d*a.speed*dt;m.facing=Math.sign(dx)||1}
@@ -44,7 +50,9 @@ function wardMark(m){
 function wardCreature(m,t){
  const spec=m.species,charging=m.wind>0,up=charging?1-m.wind/wardFoes[spec].wind:0;
  ctx.save();ctx.translate(m.x,m.y);ctx.scale(m.facing||1,1);
+ if(m.rift){poly("#ac88db",-7,-12,0,-19,7,-12,0,-8);glow(0,-11,15,"#ac83d763")}
  const silver=m.flash>0?"#fff0d4":"#9ba8bb",night="#343d52",red="#973f52";
+ if(m.order===1||m.order===2){ctx.shadowColor=m.order===1?"#85c8c5":"#ef815c";ctx.shadowBlur=3}
  oval("#11152299",0,1,m.boss?20:12,m.boss?6:3);
  if(spec==="hound"){
   ctx.translate(0,charging?2:Math.sin(t*13)*1.1);

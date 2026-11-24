@@ -79,39 +79,32 @@ function ferryThreshold(x,y,scale,t,charge){
 }
 const wardYard=new Image();
 function arrivalArt(t){
- const w=width,h=height,s=Math.min(w/210,h/300);
- if(!wardYard.src)wardYard.src="camp-gate.webp";
- rect("#38413e",0,0,w,h);
- if(wardYard.naturalWidth){
-   const scale=Math.max(w/wardYard.width,h/wardYard.height);
-   const dw=wardYard.width*scale,dh=wardYard.height*scale;
-   ctx.drawImage(wardYard,(w-dw)/2,Math.min(0,Math.max(h-dh,h*.55-dh*.54)),dw,dh)
+ const tall=width/height<.95,file=tall?"yard-tall.webp":"yard-wide.webp";
+ if(wardYard.dataset.file!==file){wardYard.dataset.file=file;wardYard.src=file}
+ rect("#ac9c80",0,0,width,height);
+ if(wardYard.complete&&wardYard.naturalWidth)ctx.drawImage(wardYard,0,0,width,height);
+ const x=width*(tall?.28:.30),y=height*(tall?.64:.67);
+ glow(x,y,Math.min(width,height)*.024,"#ffbc4980");
+ if(!reducedMotion.matches)for(let i=0;i<4;i++){
+   const u=(t*.85+i*.09)%1;ctx.globalAlpha=(1-u)*.8;
+   oval("#ffd083",x+(i-2)*u*12,y-19*u*(1-u),1.4,.9)
  }
- // A watchman's awning hangs over the near wall. Its loose edge lifts in the wind.
- ctx.save();ctx.translate(w*.18,h*.70);ctx.scale(s,s);
- const breeze=reducedMotion.matches?0:Math.sin(t*1.8)*1.2;
- line("#5f4d39",2.4,-28,0,-27,-33);line("#524633",2.4,19,1,20,-28);
- poly("#656452",-31,-33,-15,-46,16,-42,24,-28,14,-29+breeze,7,-28,0,-31,-9,-30+breeze);
- poly("#8a8166",-31,-33,-15,-46,16,-42,3,-37);
- line("#a39b7f",.8,-31,-33,-40,4);line("#a39b7f",.8,23,-28,30,3);
- for(const offset of [-13,0]){
-   rect("#665039",offset,-11,10,11);rect("#8c7453",offset,-11,10,2);
-   line("#3e3931",1.4,offset,-7,offset+10,-7)
- }
- ctx.restore()
+ ctx.globalAlpha=1
 }
 function refugeArt(t,hero,travel,raised){
  const w=width,h=height,s=Math.min(w/190,h/270);
  drawCampPlate(w,h,hero.level,t);
  const shade=.025+.065*(1-Math.cos(t*Math.PI/90))/2;
  rect("rgba(24,20,19,"+shade+")",0,0,w,h);
- ferryThreshold(w*.79,h*.765,Math.min(w/320,h/450),t,travel?.to==="portal"?travel.p:0);
+ if(hero.level>=10)ferryThreshold(w*.79,h*.765,Math.min(w/320,h/450),t,travel?.to==="portal"?travel.p:0);
+ const kindle=travel?.relight?journeyPhase(1-travel.boat,.81,.96):1;
+ ctx.save();ctx.globalAlpha=kindle;
  const fx=w*.53-36*s,fy=h*.889;glow(fx,fy-8,s*40,"#ffb45f80");
  glow(fx,fy-4,s*61,"#ff933344");
  const flameHeight=(37+Math.sin(t*6)*.8+Math.sin(t*11)*.4)*s;
  if(campFire.naturalWidth)ctx.drawImage(campFire,fx-18*s,fy-flameHeight+4*s,36*s,flameHeight);
  for(let i=0;i<9;i++){const u=(t*.53+i/9)%1;rect("rgba(255,196,110,"+(1-u)+")",fx+u*11*s+Math.sin(i+t+u*4)*4*s,fy-u*29*s,2,2)}
- ctx.save();ctx.translate(w*.53,h*.91);ctx.scale(s,s);
+ ctx.restore();ctx.save();ctx.translate(w*.53,h*.91);ctx.scale(s,s);
  ctx.save();ctx.filter="blur(2px)";oval("#28252066",6,-1,32,3);ctx.restore();
  if(campSeat.naturalWidth)ctx.drawImage(campSeat,-25,-23,66,23);
  ctx.restore();

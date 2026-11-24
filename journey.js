@@ -1,6 +1,7 @@
 "use strict";
 const journeyPhase=(p,start,end)=>Math.max(0,Math.min(1,(p-start)/(end-start)));
 const between=(a,b,p)=>a+(b-a)*p;
+const hullArt=new Image();hullArt.src="ferry-hull.webp";
 function drawSkiff(x,y,s,t,rowing,rider){
  const stroke=rowing?Math.sin(t*5):0;
  ctx.save();ctx.translate(x,y+Math.sin(t*2)*s*.6);ctx.scale(s,s);
@@ -9,13 +10,12 @@ function drawSkiff(x,y,s,t,rowing,rider){
    ctx.strokeStyle="rgba(218,229,215,"+((1-u)*(rowing?.6:.2))+")";ctx.lineWidth=.8;
    ctx.beginPath();ctx.ellipse(-5,4,24+u*14,3+u*4,.05,0,Math.PI*1.8);ctx.stroke()
  }
- poly("#352f26",-31,-5,-23,-10,17,-10,31,-6,19,0,-22,0);
- poly("#82715c",-28,-6,-19,-8,18,-8,25,-6,13,-2,-20,-2);
- line("#c6af86",1,-24,-6,22,-7);
- if(rider)knightAt(0,-3,.63,weapon(),t,false,false,armor().bonus,0,1);
- poly("#514336",-32,-6,-21,-2,17,-3,32,-8,22,1,12,4,-18,4,-28,0);
- line("#ad9975",1.3,-29,-5,-19,-1);line("#c6b28c",1.2,-19,-1,20,-3);
- line("#302c28",.8,-21,1,17,0);
+ if(hullArt.naturalWidth)ctx.drawImage(hullArt,-40,-16,80,22);
+ if(rider)knightAt(0,-4,.60,weapon(),t,false,false,armor().bonus,0,1);
+ if(hullArt.naturalWidth){
+  ctx.save();ctx.beginPath();ctx.moveTo(-40,1);ctx.lineTo(40,-6);ctx.lineTo(40,7);ctx.lineTo(-40,7);ctx.closePath();ctx.clip();
+  ctx.drawImage(hullArt,-40,-16,80,22);ctx.restore()
+ }
  const blade=rowing?stroke*15:-13;
  const grip=rowing?4+stroke*3:9;
  line("#ccb58b",1.8,grip,-14,blade-10,4);
@@ -50,7 +50,7 @@ function boatPass(t,hero,p){
  }
  knightAt(x,y,size,weapon(),t,seat<.5,false,armor().bonus,0,seat)
 }
-function courtyardCamp(t,p,throughPortal=false){
+function courtyardCamp(t,p,throughPortal=false,smithStep=0,stairs=false){
  // p follows the knight from the entrance (0) to the lit camp (1).
  const w=width,h=height,s=Math.min(w/205,h/275);
  arrivalArt(t);
@@ -65,10 +65,13 @@ function courtyardCamp(t,p,throughPortal=false){
  }
  if(campSeat.naturalWidth)ctx.drawImage(campSeat,w*.5-22*s,h*.85-21*s,56*s,21*s);
  const walk=journeyPhase(p,0,.57),settle=journeyPhase(p,.78,1);
- const startX=throughPortal?.77:.5,startY=throughPortal?.65:.55;
- ferryThreshold(w*.77,h*.65,s*.52,t,throughPortal?1-p:0);
+ const tall=w/h<.95;
+ const startX=throughPortal ? .86 : stairs ? .77 : .51;
+ const startY=throughPortal ? .88 : tall && !stairs ? .65 : .70;
+ if(hero.level>=10)ferryThreshold(w*.86,h*.88,s*.52,t,throughPortal?1-p:0);
  const kindle=Math.sin(Math.PI*journeyPhase(p,.54,.84));
- knightAt(w*between(startX,.5,walk)-kindle*s*6,h*between(startY,.85,walk),s*between(.30,1,walk),weapon(),t,walk<1,false,armor().bonus,0,settle+kindle*.59)
+ const x=between(between(startX,.5,walk),.35,smithStep),y=between(between(startY,.85,walk),tall?.705:.80,smithStep);
+ knightAt(w*x-kindle*s*6,h*y,s*between(.30,1,walk)*(1-.18*smithStep),weapon(),t,walk<1||(smithStep>0&&smithStep<1),false,armor().bonus,0,(settle+kindle*.59)*(1-Math.min(1,smithStep*4)))
 }
 function journeyScene(t,path){
  const p=path.p;
@@ -76,6 +79,13 @@ function journeyScene(t,path){
    const forward=path.to==="castle"?p:1-p;
    if(forward<.72)refugeArt(t,hero,{boat:forward/.72},false);
    else courtyardCamp(t,(forward-.72)/.28);
+   return
+ }
+ if(path.to==="smith"||path.to==="smithBack"){courtyardCamp(t,1,false,path.to==="smith"?p:1-p);return}
+ if(path.to==="storyHome"){refugeArt(t,hero,{boat:1-p,relight:true},false);return}
+ if(path.to==="stairs"){
+   if(path.fromSmith&&p<.36)courtyardCamp(t,1,false,1-p/.36);
+   else courtyardCamp(t,1-(path.fromSmith?(p-.36)/.64:p),false,0,true);
    return
  }
  if(path.to==="homePortal"){courtyardCamp(t,p,true);return}

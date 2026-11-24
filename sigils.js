@@ -28,7 +28,7 @@ function drawSigils(b,t){
  }
 }
 function dash(){
- const b=combat;if(!b||hero.expedition.tier!==0||arrival||layoutDialog.open||(dialog.open&&screen!=="bag")||b.rest>0)return;
+ const b=combat;if(!b||arrival||layoutDialog.open||(dialog.open&&screen!=="bag")||b.rest>0)return;
  const dx=stick.x+Number(keys.has("KeyD")||keys.has("ArrowRight"))-Number(keys.has("KeyA")||keys.has("ArrowLeft"));
  const dy=stick.y+Number(keys.has("KeyS")||keys.has("ArrowDown"))-Number(keys.has("KeyW")||keys.has("ArrowUp"));
  b.dashAngle=Math.hypot(dx,dy)>.1?Math.atan2(dy,dx):b.heading??0;

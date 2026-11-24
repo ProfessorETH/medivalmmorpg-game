@@ -109,3 +109,10 @@ body.wide-mode #field{flex:1;min-height:0;max-height:none;height:auto}
 #returnCamp{left:15%;bottom:12%}
 
 #field.courtyard #portal{left:77%;top:65%;right:auto;transform:translateX(-50%)}
+#smith,#stairs{position:absolute;transform:translate(-50%,0);background:#272a24ec;border:1px solid #aa946c;color:#fff1d2;font:600 15px Georgia;z-index:2;box-shadow:0 3px 10px #19190f44}
+#smith{left:28%;top:78%}#stairs{left:76%;top:73%}
+#field.courtyard #portal{left:86%;top:88%}
+.courtyard #returnCamp{left:51%;bottom:auto;top:62%}
+.forge-blade{display:flex;align-items:center;gap:14px}.forge-blade img{width:68px;height:68px}
+@media(min-width:850px){body:has(#field.courtyard) main,body.at-refuge main{width:96vw;max-width:2100px}body:has(#field.courtyard) #field,body.at-refuge #field{height:min(calc(100dvh - 155px),58vw);min-height:380px}body:has(#field.courtyard) footer button{max-width:none}body:has(#field.courtyard) footer{width:100%}}
+@media(max-width:680px){#smith{left:23%;top:69%}#stairs{top:68%}.courtyard #returnCamp{top:57%}}
