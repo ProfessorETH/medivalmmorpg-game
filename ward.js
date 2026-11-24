@@ -104,10 +104,39 @@ function wardHall(t,room){
  for(const [x,y] of [[110,95],[345,222],[196,294]]){oval("#344259",x,y,36,6);line("#78889b",.7,x-23,y,x+8,y)}
  for(let i=0;i<8;i++){let x=i*64+10;poly("#2b3043",x,40,x,12,x+10,1,x+30,1,x+39,12,x+39,40);poly("#141e30",x+5,40,x+5,14,x+13,6,x+27,6,x+34,15,x+34,40);
  for(let j=0;j<4;j++)rect("#667182",x+8+j*7,13,1,26);rect("#485265",x+5,24,29,2)}
+ // Each barred niche sits inside a ring of cut stone with a worn threshold.
+ for(let i=0;i<8;i++){
+  const x=i*64+29;
+  for(let j=0;j<7;j++){
+   const a=Math.PI+j*Math.PI/7,b=a+Math.PI/7-.024;
+   poly(["#596272","#535e6c","#657080"][(i+j)%3],
+    x+20*Math.cos(a),19+18*Math.sin(a),x+20*Math.cos(b),19+18*Math.sin(b),
+    x+16*Math.cos(b),19+14*Math.sin(b),x+16*Math.cos(a),19+14*Math.sin(a));
+  }
+  for(const side of [-1,1])for(let j=0;j<3;j++){
+   const px=x+side*18;
+   rect(j%2?"#4f5866":"#5a6270",px-2.5,19+j*7,5,6.4);
+   line("#76808a",.45,px-2,19+j*7,px+2,19+j*7)
+  }
+  poly("#232c3c",x-21,40,x+21,40,x+25,44,x-24,44);
+  line("#78828b",.8,x-20,40,x+20,40)
+ }
  });
  wardFloor=c
  }
  ctx.drawImage(wardFloor,0,0,480,360);
+ // Slatted light falls from the cell windows. Its footprint identifies the room.
+ const windowX=[78,260,145,328,190][(room-1)%5]??145;
+ ctx.save();ctx.translate(windowX,0);
+ const light=ctx.createLinearGradient(0,28,44,175);
+ light.addColorStop(0,room===5?"#e6b98940":"#b7d1d03b");light.addColorStop(1,"#b7d1d000");
+ for(let i=0;i<4;i++)poly(light,i*8,30,i*8+5,30,i*12+78,175,i*12+69,175);
+ if(!reducedMotion.matches)for(let i=0;i<8;i++){
+  const u=(t*.11+i*.31)%1;
+  ctx.globalAlpha=.35*Math.sin(Math.PI*u);
+  oval("#e3d3b0",i*4+u*49+Math.sin(t+i)*1.5,42+u*91,.65,.52)
+ }
+ ctx.restore();
  for(const x of [106,374]){poly("#662e48",x-7,0,x+7,0,x+7,26,x,33,x-7,26);line("#bba989",1,x,8,x,21);glow(x+17,31,18,"#ec995e60");poly("#eab57e",x+14,33,x+17,22+Math.sin(t*7),x+20,33)}
  ctx.strokeStyle=room===5?"#aa7a7577":"#99a6b133";ctx.lineWidth=2;ctx.beginPath();ctx.arc(240,180,45,0,7);ctx.stroke()
 }

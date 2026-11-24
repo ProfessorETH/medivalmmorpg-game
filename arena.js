@@ -375,9 +375,19 @@ function drawDoors(b,r,t){
 function arenaArt(t){
  const b=combat,r=hero.expedition;
  if(arenaSubject!==b){arenaSubject=b;arenaView={}}
- const scale=Math.max(width/480,height/360)*(reducedMotion.matches?1:1.08);
+ let threat=null,nearest=110;
+ for(const mob of b.mobs){
+  const distance=Math.hypot(mob.x-b.x,mob.y-b.y);
+  if(mob.wind>0&&distance<nearest){nearest=distance;threat=mob}
+ }
+ const zoom=reducedMotion.matches||b.mobs.some(m=>m.boss)?1:1.08;
+ const targetScale=Math.max(width/480,height/360)*zoom;
+ const elapsed=Math.min(.08,Math.max(0,t-(arenaView.time??t)));
+ const scale=Math.max(width/480,height/360,(arenaView.scale??targetScale)+(targetScale-(arenaView.scale??targetScale))*(1-Math.exp(-elapsed*5)));
+ const bias=threat&&!reducedMotion.matches?.25:0;
+ const focusX=b.x+((threat?.x??b.x)-b.x)*bias,focusY=b.y+((threat?.y??b.y)-b.y)*bias;
  const speed=b.walk?82:0;
- followRoom(arenaView,b.x,b.y-6,Math.cos(b.heading??0)*speed,Math.sin(b.heading??0)*speed,scale,480,360,t);
+ followRoom(arenaView,focusX,focusY-6,Math.cos(b.heading??0)*speed,Math.sin(b.heading??0)*speed,scale,480,360,t);
  const ox=arenaView.left,oy=arenaView.top;
  ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);
  if(r.tier===0)wardHall(t,r.room);else{

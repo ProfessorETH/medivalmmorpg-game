@@ -97,6 +97,13 @@ function arrivalArt(t){
  rect("#ac9c80",0,0,width,height);
  if(wardYard.complete&&wardYard.naturalWidth)ctx.drawImage(wardYard,0,0,width,height);
  const x=width*(tall?.28:.30),y=height*(tall?.64:.67);
+ if(!reducedMotion.matches){
+  for(let i=0;i<5;i++){
+   const u=(t*.18+i/5)%1;
+   ctx.save();ctx.globalAlpha=.10*Math.sin(u*Math.PI);
+   oval("#d6c5ab",x+u*u*width*.054,y-u*height*.12,3+u*width*.014,2+u*height*.009);ctx.restore()
+  }
+ }
  if((t*.85)%3<.09)soundscape.play("anvil",2.8);
  glow(x,y,Math.min(width,height)*.024,"#ffbc4980");
  if(!reducedMotion.matches)for(let i=0;i<4;i++){
@@ -141,6 +148,7 @@ function refugeArt(t,hero,travel,raised){
  drawSkiff(dock.x,dock.y,s*.82,t,false,false,false,true);
  if(behind||(!travel&&drawWalker(t,s)))return;
  const x=w*(.53+(tx-.53)*ease),y=h*(.91+(ty-.91)*ease);
+ trackJourney(x,y,1.15);
  const vanish=Math.max(0,(p-.85)/.15);
  ctx.save();ctx.globalAlpha=1-vanish;
  knightAt(x,y,s*(1-.72*ease)*(1-.9*vanish),hero.bag[hero.gear.weapon],t,walk>0&&walk<1,raised,hero.bag[hero.gear.armor].bonus,0,Math.max(0,1-p/.22));ctx.restore()

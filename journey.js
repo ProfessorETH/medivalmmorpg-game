@@ -24,6 +24,13 @@ function drawSkiff(x,y,s,t,rowing,rider,reverse=false,moored=false){
  ctx.save();ctx.translate(x,y);ctx.scale(s,s);
  if(reverse)ctx.scale(-1,1);
  oval("#4b615933",0,4,40,4);
+ if(moored&&!rowing){
+   ctx.strokeStyle="#685842";ctx.lineWidth=1.4;
+   ctx.beginPath();ctx.moveTo(-31,-4);ctx.quadraticCurveTo(-43,10+wave,-54,8);ctx.stroke();
+   if(!reducedMotion.matches)for(let i=0;i<2;i++){
+    const u=(t*.28+i*.5)%1;waterArc(-14+u*4,3,18+u*28,2+u*4,.28*(1-u))
+   }
+ }
  if(rowing)for(let i=0;i<4;i++){
    const u=(t*.55+i/4)%1;
    waterArc(-30-u*48,6+u*11,9+u*18,2+u*4,.58*(1-u))
@@ -59,7 +66,7 @@ function boatPass(t,hero,p,reverse=false){
  const bs=s*between(.82,.21,ease);
  const aboard=p>=.34&&p<=.82;
  drawSkiff(bx,by,bs,t,aboard,aboard,reverse,p<.24);
- if(aboard)return;
+ if(aboard){trackJourney(bx,by,1.24);return}
  let x,y,size,seat;
  if(p<.34){
    const step=journeyPhase(p,.09,.34),jump=journeyPhase(p,.24,.34);
@@ -71,6 +78,7 @@ function boatPass(t,hero,p,reverse=false){
    x=between(far.x,w*gate.x,step);y=between(far.y,h*gate.y,step)-Math.sin(Math.PI*step)*s;
    size=s*between(.21*.63,.095,step);seat=1-journeyPhase(step,0,.25)
  }
+ trackJourney(x,y,1.18);
  knightAt(x,y,size,weapon(),t,seat<.5,false,armor().bonus,0,seat)
 }
 function courtyardCamp(t,p,throughPortal=false,smithStep=0,stairs=false){
@@ -98,6 +106,7 @@ function courtyardCamp(t,p,throughPortal=false,smithStep=0,stairs=false){
  if(behind||(!travel&&drawWalker(t,s)))return;
  const origin=hero.base==="castle"&&travel?.to!=="homePortal"?travel?.origin:null;
  const x=between(between(startX,origin?.x??.5,walk),.35,smithStep),y=between(between(startY,origin?.y??.85,walk),tall?.705:.80,smithStep);
+ trackJourney(w*x,h*y,smithStep>.5?1.21:1.14);
  knightAt(w*x-kindle*s*6,h*y,s*between(.30,1,walk)*(1-.18*smithStep),weapon(),t,walk<1||(smithStep>0&&smithStep<1),false,armor().bonus,0,(settle+kindle*.59)*(1-Math.min(1,smithStep*4)))
 }
 function journeyScene(t,path){

@@ -6,7 +6,11 @@ function followRoom(view, x, y, vx, vy, scale, roomW, roomH, time) {
  const tx=x+vx*lead,ty=y+vy*lead;
  const ease=reducedMotion.matches?1:1-Math.exp(-dt*8);
  if(view.time===undefined){view.x=tx;view.y=ty}
- view.x+=(tx-view.x)*ease;view.y+=(ty-view.y)*ease;view.time=time;
+ // Small foot corrections and idle motion stay within a screen-space dead zone.
+ const margin=reducedMotion.matches?0:Math.min(width,height)*.026/scale;
+ const dx=tx-view.x,dy=ty-view.y;
+ view.x+=(dx-clamp(dx,-margin,margin))*ease;
+ view.y+=(dy-clamp(dy,-margin*.7,margin*.7))*ease;view.time=time;
  view.scale=scale;
  view.left=clamp(width*.50-view.x*scale,width-roomW*scale,0);
  view.top=clamp(height*.54-view.y*scale,height-roomH*scale,0);
@@ -84,6 +88,14 @@ function roadArt(t){
    line("#e8e5bd",1.3,x,y,x+15*phase,y)
   }ctx.globalAlpha=1;
  }
+ if(!reducedMotion.matches){
+  for(let i=0;i<8;i++){
+   const u=(t*.105+i*.293)%1,origin=240+(i*239)%1420;
+   const px=origin+u*65+Math.sin(u*8+i)*13,py=laneY(origin)-115+u*156;
+   ctx.save();ctx.globalAlpha=.64*Math.sin(Math.PI*u);ctx.translate(px,py);ctx.rotate(u*5+i);
+   oval(i%2?"#ae8549":"#b2a052",0,0,3.5,1.4);ctx.restore()
+  }
+ }
  if(a.goal){
   ctx.strokeStyle="#ffeac1";ctx.lineWidth=1.7;ctx.beginPath();ctx.ellipse(a.goal.x,a.goal.y,8,4,0,0,Math.PI*2);ctx.stroke()
  }
@@ -92,15 +104,21 @@ function roadArt(t){
  ctx.restore()
 }
 const campView={zoom:1,left:0,top:0};
+let journeyFocus=null;
+function trackJourney(x,y,zoom){
+ if(travel)journeyFocus={path:travel,x:x/width,y:y/height,zoom};
+}
+
 function campCamera(dt){
  const a=!combat&&!travel&&!roadside?walker:null;
- const target=a&&!reducedMotion.matches?1.20:1;
+ const focus=travel&&journeyFocus?.path===travel?journeyFocus:null;
+ const target=reducedMotion.matches?1:focus?focus.zoom:a?1.16:1;
  const k=1-Math.exp(-dt*6);
  campView.zoom+=(target-campView.zoom)*k;
  if(target===1&&campView.zoom<1.001)campView.zoom=1;
  const z=campView.zoom;
- const left=clamp(width*.5-(a?a.x*width+a.vx*.10:width*.5)*z,width-width*z,0);
- const top=clamp(height*.59-(a?a.y*height+a.vy*.10:height*.5)*z,height-height*z,0);
+ const left=clamp(width*.5-(a?a.x*width+a.vx*.13:(focus?.x??.5)*width)*z,width-width*z,0);
+ const top=clamp(height*.59-(a?a.y*height+a.vy*.10:(focus?.y??.5)*height)*z,height-height*z,0);
  campView.left=clamp(campView.left+(left-campView.left)*k,width-width*z,0);
  campView.top=clamp(campView.top+(top-campView.top)*k,height-height*z,0);
  if(combat||roadside){campView.zoom=1;campView.left=campView.top=0}
