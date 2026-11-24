@@ -1,5 +1,7 @@
 "use strict";
-const stage=document.querySelector("#view"), ctx=stage.getContext("2d");
+const stage=document.querySelector("#view");
+let ctx=stage.getContext("2d");
+function paintOn(canvas,draw){const original=ctx;ctx=canvas.getContext("2d");ctx.save();try{draw()}finally{ctx.restore();ctx=original}}
 let width=0,height=0;
 function resizeStage(){
  const box=stage.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);

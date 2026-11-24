@@ -127,12 +127,21 @@ function refugeArt(t,hero,travel,raised){
   poly(i%2?"#ffb563":"#f16b39",x-3*s,fy,x-4*s,fy-z*.48,x+Math.sin(t*4+i)*3*s,fy-z,x+1.8*s,fy-z*.4,x+4*s,fy);
   poly("#ffeab0",x-2*s,fy,x,fy-z*.48,x+2*s,fy)}
  for(let i=0;i<9;i++){const u=(t*.53+i/9)%1;rect("rgba(255,196,110,"+(1-u)+")",fx+u*11*s+Math.sin(i+t+u*4)*4*s,fy-u*29*s,2,2)}
- ctx.save();ctx.translate(w*.54,h*.814);ctx.scale(s,s);
- oval("#24363777",0,6,26,5);rect("#634f40",-23,-4,42,8);rect("#8d7356",-21,-4,39,2);
- oval("#b19773",-22,0,4,5);oval("#74634d",-22,0,2.2,3.1);ctx.restore();
+ ctx.save();ctx.translate(w*.55,h*.825-19*s);ctx.scale(s,s);
+ oval("#24363777",0,6,26,5);rect("#634f40",-23,-1,43,13);rect("#8d7356",-21,-4,39,2);
+ for(let i=0;i<5;i++)line(i%2?"#735747":"#453c3e",.8,-17+i,2+i*1.8,18-i,3+i*1.8);
+ oval("#b19773",-22,5,5,8);oval("#74634d",-22,0,2.2,3.1);ctx.restore();
  const returning=travel?.to==="homePortal";
  const p=returning?1-travel.p:travel?.p||0,walk=Math.min(1,Math.max(0,(p-.22)/.66)),ease=walk*walk*(3-2*walk);
  const portal=returning||travel?.to==="portal",tx=portal ? .79 : .5,ty=portal?.59:.505;
+ const resting=Math.max(0,1-p/.22);
+ if(resting>.35){
+  ctx.save();ctx.translate(w*.78,h*.85);ctx.scale(s,s);
+  oval("#11152577",0,1,17,3);line("#543b32",3,-12,0,-6,-26);line("#805d46",3,10,0,5,-26);line("#9a7350",3,-12,-23,11,-23);
+  if(hero.bag[hero.gear.weapon].style==="twins"){sword(-6,-21,2.95,true,false);sword(6,-22,3.31,true,false)}
+  else{sword(4,-35,3.30,false,hero.bag[hero.gear.weapon].bonus>2);poly("#b08b61",-18,-19,-10,-21,-3,-16,-6,-5,-13,-1,-18,-8);poly("#8e3449",-16,-17,-10,-19,-5,-15,-8,-6,-13,-3,-16,-9)}
+  ctx.restore()
+ }
  const x=w*(.53+(tx-.53)*ease),y=h*(.825+(ty-.825)*ease);
  const vanish=Math.max(0,(p-.85)/.15);
  ctx.save();ctx.globalAlpha=1-vanish;

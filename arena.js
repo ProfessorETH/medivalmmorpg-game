@@ -5,8 +5,15 @@ const makeItem=(kind,name,bonus,style=null)=>({kind,name,bonus,style});
 const fresh=()=>({name:"Странник",level:1,xp:0,points:0,power:1,agility:1,mind:1,coins:0,gear:{weapon:0,armor:2},bag:[makeItem("weapon","Длинный меч",1,"sword"),makeItem("weapon","Парные клинки",1,"twins"),makeItem("armor","Походная кольчуга",1)],run:null});
 let hero;try{hero=JSON.parse(localStorage.getItem(key))||fresh()}catch{hero=fresh()}
 hero.shards??=0;hero.expedition??=null;
+if(!hero.baseKit){
+ for(const [kind,name] of [["head","Походный шлем"],["cloak","Плащ переправы"],["hands","Дорожные перчатки"],["feet","Походные сапоги"]]){
+   if(hero.gear[kind]!==undefined)continue;
+   hero.gear[kind]=hero.bag.length;hero.bag.push(makeItem(kind,name,0))
+ }
+ hero.baseKit=true;persist()
+}
 const weapon=()=>hero.bag[hero.gear.weapon], armor=()=>hero.bag[hero.gear.armor];
-const maxHp=()=>38+hero.level*3+armor().bonus*3;
+const maxHp=()=>38+hero.level*3+armor().bonus*3+Object.entries(hero.gear).reduce((hp,[kind,idx])=>hp+(kind==="weapon"||kind==="armor"?0:hero.bag[idx]?.bonus||0),0);
 function persist(){try{localStorage.setItem(key,JSON.stringify(hero))}catch{$("saveError").textContent="Устройству не удалось сохранить прогресс."}}
 function xp(n){hero.xp+=n;while(hero.xp>=hero.level*18){hero.xp-=hero.level*18;hero.level++;hero.points++}}
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -33,7 +40,7 @@ function arrive(){
 }
 let keys=new Set(),stick={x:0,y:0},pointer=null,screen="",combat=null,effects=[],swing=null,prev=0,saveTime=0;
 const zoneNames=["Казематы брода","Склеп знаменосца","Обсидиановый бастион"];
-const keepers=["Хранитель брода","Мёртвый знаменосец","Обсидиановый князь"];
+const keepers=["Тюремщик брода","Мёртвый знаменосец","Обсидиановый князь"];
 const rewards=["Лечение +12 ♥","Заточка +2 урона","Оберег +1 защиты"];
 function routes(room=1,total=5){const kinds=[0,1,2];const n=Math.floor(Math.random()*3);const pair=[{elite:false,kind:kinds[n]},{elite:true,kind:kinds[(n+1+Math.floor(Math.random()*2))%3]}];const pool=room%2===1?["hunt","gather"]:["survive","clear"];if(Math.random()<.5)pool.reverse();pair.forEach((road,i)=>road.mission=room===total?"boss":pool[i]);return Math.random()<.5?pair:pair.reverse()}
 function hud(){
@@ -91,8 +98,7 @@ function show(page){
  for(const [k,title] of [["power","Сила"],["agility","Ловкость"],["mind","Интеллект"]])html+='<div class="row">'+title+' · '+hero[k]+(hero.points?btn("+1","stat:"+k):"")+'</div>';
  html+='<label>Имя<input id="knightName" maxlength="24" value="'+safe(hero.name)+'"></label>'+btn("Сохранить имя","name");
  }else if(page==="bag"){
- html='<small>Снаряжение</small><h2>Походная сумка</h2><p>Осколки руды · '+hero.shards+(combat?" · Бой продолжается":"")+'</p>';
- hero.bag.forEach((it,i)=>{const worn=hero.gear[it.kind]===i;html+='<div class="row"><div><strong>'+safe(it.name)+'</strong><span>'+(it.kind==="armor"?"Защита":"Урон")+' +'+it.bonus+'</span></div>'+(worn?"Надето":r?"В лагере":btn("Надеть","equip:"+i))+'</div>'});
+ html=bagPage();
  }else if(page==="zones"){
  html='<small>Карта переправы</small><h2>Куда отправимся?</h2><div class="preview-list" aria-label="Цели похода">'+Object.keys(contracts).map(type=>'<div>'+missionImage(type)+'<span>'+({gather:'Сбор',hunt:'Волны',survive:'Время',clear:'Зачистка',boss:'Босс'})[type]+'</span></div>').join("")+'</div>';
  zoneNames.forEach((name,i)=>{const lvl=i*2+1;html+=hero.level>=lvl?btn(name+'<span>Уровень '+lvl+' · 5 залов</span>',"zone:"+i,"route"):'<button class="route" disabled>'+name+' · ур. '+lvl+'</button>'});
@@ -108,7 +114,7 @@ function show(page){
  }else if(page==="prize"){
  html='<small>Хранитель повержен</small><h2>'+safe(hero.trophy.name)+'</h2><p>Качество +'+hero.trophy.bonus+' · Вещь уже в сумке.</p>'+btn("Надеть сейчас","wearPrize","primary")+" "+btn("Оставить в сумке","close")
  }
- content.innerHTML=html;
+ content.innerHTML=html;dialog.classList.toggle("equipment-sheet",page==="bag");if(page==="bag")drawPaperKnight();
  if(dialog.open)dialog.close();
  if(page==="bag"&&combat)dialog.show();else dialog.showModal();
 }
@@ -125,7 +131,8 @@ content.onclick=e=>{
  if(act==="road"&&!combat&&hero.expedition){depart("portal",idx)}
  if(act==="name"){const s=$("knightName").value.trim();if(s)hero.name=s;show("hero")}
  if(act==="stat"&&hero.points&&["power","agility","mind"].includes(arg)){hero[arg]++;hero.points--;show("hero")}
- if(act==="equip"&&!hero.expedition){hero.gear[hero.bag[idx].kind]=idx;raisedUntil=performance.now()+1600;closeSheet()}
+ if(act==="slot"&&fittings[arg]){bagSlot=arg;show("bag")}
+ if(act==="equip"&&!hero.expedition){hero.gear[hero.bag[idx].kind]=idx;raisedUntil=performance.now()+1600;show("bag")}
  if(act==="wearPrize"){hero.gear[hero.trophy.kind]=hero.trophy.index;raisedUntil=performance.now()+1800;closeSheet()}
  if(act==="retreat"){end(false,"Ты вернулся к костру.");closeSheet()}
  if(act==="close")closeSheet();persist();hud();
@@ -157,13 +164,16 @@ function begin(idx){
    combat.task.stones=positions.slice(0,combat.task.goal).map(([x,y])=>({x,y}));
  }
  for(let i=0;i<count;i++)spawnMob((i/count)*Math.PI*2+.4,type==="boss"&&i===0);
- r.battle=combat;effects=[];swing=null;enterTitle("Зал "+r.room+" / "+(r.total||3),zoneNames[r.tier]);hud()
+ r.battle=combat;effects=[];swing=null;enterTitle("Зал "+r.room+" / "+(r.total||3),type==="boss"?keepers[r.tier]:zoneNames[r.tier]);hud()
 }
 function spawnMob(angle,boss=false){
  const b=combat,r=hero.expedition,hp=6+2*r.tier+(b.road.elite?5:0)+(boss?28:0);
  let x=clamp(b.x+Math.cos(angle)*115,18,462),y=clamp(b.y+Math.sin(angle)*97,22,338);
  if(Math.hypot(b.x-x,b.y-y)<56){x=b.x<240?b.x+90:b.x-90;y=b.y}
- b.mobs.push({x,y,hp,max:hp,boss,delay:.3,wind:0,tx:0,ty:0})
+ const species=r.tier===0?(boss?"keeper":["pike","hound","bell"][(b.spawned||0)%3]):null;
+ b.spawned=(b.spawned||0)+1;
+ const health=hp+(species?wardFoes[species].hp:0);
+ b.mobs.push({x,y,hp:health,max:health,boss,species,turn:0,delay:.3,wind:0,tx:0,ty:0})
 }
 function goalHud(){
  const b=combat,task=b.task,type=task.type;
@@ -206,7 +216,13 @@ function finishRoom(){
    $("flash").textContent="Хранитель повержен · Войди в портал к костру";persist();hud();return
  }
  const road=combat.road;
- r.lastGoal="Зал пройден · "+roadReward(road);
+ let extra="";
+ if(r.room===1||r.room===3){
+   const kinds=["head","cloak","hands","belt","ring","feet"];
+   const kind=hero.bag.some(it=>it.kind==="belt")?kinds[Math.floor(Math.random()*kinds.length)]:"belt";
+   const name=fittings[kind][1];hero.bag.push(makeItem(kind,name,1+r.tier+Number(road.elite)));extra=" · "+name
+ }
+ r.lastGoal="Зал пройден · "+roadReward(road)+extra;
  if(road.kind===0)r.hp=Math.min(maxHp(),r.hp+(road.elite?20:12));else if(road.kind===1)r.force+=road.elite?4:2;else r.ward+=road.elite?2:1;
  const next=r.room+1;r.roads=routes(next,r.total||3);
  const cx=clamp(combat.x,85,395),y=combat.y>180?118:235;
@@ -231,6 +247,11 @@ function update(dt){
    return
  }
  for(const m of b.mobs){
+ if(m.species){
+   const raw=wardStep(m,b,dt);
+   if(raw){const hit=Math.max(1,raw+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;effect(b.x,b.y,-hit,"#ff9a83");hud()}
+   continue
+ }
  m.delay-=dt;m.flash=Math.max(0,(m.flash||0)-dt);const vx=b.x-m.x,vy=b.y-m.y,dist=Math.hypot(vx,vy);
  if(m.wind>0){m.wind-=dt;if(m.wind<=0){if(Math.hypot(b.x-m.tx,b.y-m.ty)<(m.boss?32:22)){
  const hit=Math.max(1,4+(m.boss?4:0)+r.tier+(b.road.elite?2:0)-r.ward-armor().bonus);r.hp-=hit;effect(b.x,b.y,-hit,"#ff9a83");hud()}
@@ -283,6 +304,7 @@ function arenaArt(t){
  const scale=Math.max(width/480,height/360);
  const ox=clamp(width/2-b.x*scale,width-480*scale,0),oy=clamp(height/2-b.y*scale,height-360*scale,0);
  ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);
+ if(r.tier===0)wardHall(t,r.room);else{
  rect("#374d4c",0,0,480,360);
  for(let j=0;j<20;j++)for(let i=-1;i<17;i++){
  const x=i*32+(j%2)*16,y=j*19,v=(i*17+j*13+55)%5;
@@ -294,7 +316,8 @@ function arenaArt(t){
  for(let i=0;i<16;i++){const a=i*Math.PI/8;line("#b0a47b88",2,240+Math.cos(a)*54,180+Math.sin(a)*54,240+Math.cos(a)*58,180+Math.sin(a)*58)}
  for(let i=0;i<12;i++){const x=12+i*41;rect("#273e41",x,0,14,17);rect("#6d7770",x,0,14,6)}
  for(const [x,y] of [[28,32],[452,32],[28,330],[452,330]]){oval("#243837",x,y+4,10,5);rect("#45494a",x-4,y-12,8,17);glow(x,y-13,26,"#ffb86866");poly("#e7a45f",x-5,y-10,x-4,y-17,x,y-24+Math.sin(t*8)*2,x+5,y-14,x+3,y-10)}
- for(const m of b.mobs)if(m.wind>0){oval("#e66c532e",m.tx,m.ty,m.boss?32:22,m.boss?32:22);ctx.strokeStyle="#ff9b70";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(m.tx,m.ty,m.boss?32:22,0,Math.PI*2);ctx.stroke()}
+ }
+ for(const m of b.mobs)if(m.species)wardMark(m);else if(m.wind>0){oval("#e66c532e",m.tx,m.ty,m.boss?32:22,m.boss?32:22);ctx.strokeStyle="#ff9b70";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(m.tx,m.ty,m.boss?32:22,0,Math.PI*2);ctx.stroke()}
  if(b.exits)drawDoors(b,r,t);
  if(b.returnGate)archAt(b.returnGate.x,b.returnGate.y,.85,t,1);
  if(b.task.type==="gather"&&!b.exits){
@@ -308,6 +331,7 @@ function arenaArt(t){
  const units=[...b.mobs,b].sort((a,c)=>a.y-c.y);
  for(const m of units){
  if(m===b){if(arrival>0){archAt(b.x,b.y+1,.65,t,1);ctx.save();ctx.globalAlpha=Math.max(.18,1-arrival/1.4)}knightAt(b.x,b.y,.49,weapon(),t,b.walk,false,armor().bonus,swing?.life>0?Math.sin(Math.PI*swing.life/.3)*1.45:0);if(arrival>0)ctx.restore();continue}
+ if(m.species){wardCreature(m,t);continue}
  ctx.save();ctx.translate(m.x,m.y);const s=m.boss?1.42:1;ctx.scale(s,s);if(!m.wind)ctx.translate(0,Math.sin(t*9+m.max)*1.1);
  oval("#1c292a88",0,1,10,4);const coat=m.flash>0?"#ffe6ba":m.boss?"#854850":b.road.elite?"#8e574b":"#526a51";
  poly("#343944",-6,-7,6,-7,8,0,3,1,0,-3,-4,1,-8,1);
