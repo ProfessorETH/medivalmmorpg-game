@@ -16,14 +16,15 @@ let keys=new Set(),stick={x:0,y:0},pointer=null,screen="",combat=null,effects=[]
 const zoneNames=["Казематы брода","Склеп знаменосца","Обсидиановый бастион"];
 const keepers=["Хранитель брода","Мёртвый знаменосец","Обсидиановый князь"];
 const rewards=["Лечение +12 ♥","Заточка +2 урона","Оберег +1 защиты"];
-function routes(room=1){const kinds=[0,1,2];const n=Math.floor(Math.random()*3);const pair=[{elite:false,kind:kinds[n]},{elite:true,kind:kinds[(n+1+Math.floor(Math.random()*2))%3]}];const pool=room===1?["hunt","gather"]:["survive","clear"];if(Math.random()<.5)pool.reverse();pair.forEach((road,i)=>road.mission=room===3?"boss":pool[i]);return Math.random()<.5?pair:pair.reverse()}
+function routes(room=1,total=5){const kinds=[0,1,2];const n=Math.floor(Math.random()*3);const pair=[{elite:false,kind:kinds[n]},{elite:true,kind:kinds[(n+1+Math.floor(Math.random()*2))%3]}];const pool=room%2===1?["hunt","gather"]:["survive","clear"];if(Math.random()<.5)pool.reverse();pair.forEach((road,i)=>road.mission=room===total?"boss":pool[i]);return Math.random()<.5?pair:pair.reverse()}
 function hud(){
  const r=hero.expedition;
- $("area").textContent=r?"Северное пограничье · зал "+r.room+"/3":"Северное пограничье · убежище "+(hero.level>=5?"III":hero.level>=3?"II":"I");
+ $("area").textContent=r?"Северное пограничье · зал "+r.room+"/"+(r.total||3):"Северное пограничье · убежище "+(hero.level>=5?"III":hero.level>=3?"II":"I");
  $("title").textContent=r?zoneNames[r.tier]:"Замок переправы";
  $("gold").textContent="◈ "+hero.coins;
  $("vitals").textContent=r?"♥ "+Math.ceil(r.hp)+"/"+maxHp()+"　✦ "+r.energy+"/3"+(combat?"　Враги: "+combat.mobs.length:""):hero.name+"　·　ур. "+hero.level;
- $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat;if(combat)goalHud();
+ $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat||!!combat.exits;if(combat&&!combat.exits)goalHud();
+ $("belt").hidden=!combat;if(combat)flaskHud();
  for(const id of ["portrait","portal"])$(id).hidden=!!r;
  $("pause").hidden=!combat;$("stick").hidden=!combat;
  $("venture").textContent=r?"✧　Поход":"⚔　В поход";
@@ -33,21 +34,22 @@ function clearInput(){keys.clear();pointer=null;stick={x:0,y:0};$("stick").first
 function show(page){
  clearInput();screen=page;const r=hero.expedition;
  let html="";
+ dialog.classList.toggle("live-bag",page==="bag"&&!!combat);
  if(page==="hero"){
  html='<small>Рыцарь переправы</small><h2>'+safe(hero.name)+'</h2><p>Уровень '+hero.level+' · Опыт '+hero.xp+'/'+(18*hero.level)+' · Свободных очков '+hero.points+'</p>';
  for(const [k,title] of [["power","Сила"],["agility","Ловкость"],["mind","Интеллект"]])html+='<div class="row">'+title+' · '+hero[k]+(hero.points?btn("+1","stat:"+k):"")+'</div>';
  html+='<label>Имя<input id="knightName" maxlength="24" value="'+safe(hero.name)+'"></label>'+btn("Сохранить имя","name");
  }else if(page==="bag"){
- html='<small>Снаряжение</small><h2>Походная сумка</h2><p>Осколки руды · '+hero.shards+'</p>';
+ html='<small>Снаряжение</small><h2>Походная сумка</h2><p>Осколки руды · '+hero.shards+(combat?" · Бой продолжается":"")+'</p>';
  hero.bag.forEach((it,i)=>{const worn=hero.gear[it.kind]===i;html+='<div class="row"><div><strong>'+safe(it.name)+'</strong><span>'+(it.kind==="armor"?"Защита":"Урон")+' +'+it.bonus+'</span></div>'+(worn?"Надето":r?"В лагере":btn("Надеть","equip:"+i))+'</div>'});
  }else if(page==="zones"){
  html='<small>Карта переправы</small><h2>Куда отправимся?</h2><div class="preview-list" aria-label="Цели похода">'+Object.keys(contracts).map(type=>'<div>'+missionImage(type)+'<span>'+({gather:'Сбор',hunt:'Волны',survive:'Время',clear:'Зачистка',boss:'Босс'})[type]+'</span></div>').join("")+'</div>';
- zoneNames.forEach((name,i)=>{const lvl=i*2+1;html+=hero.level>=lvl?btn(name+'<span>Уровень '+lvl+' · 3 зала</span>',"zone:"+i,"route"):'<button class="route" disabled>'+name+' · ур. '+lvl+'</button>'});
+ zoneNames.forEach((name,i)=>{const lvl=i*2+1;html+=hero.level>=lvl?btn(name+'<span>Уровень '+lvl+' · 5 залов</span>',"zone:"+i,"route"):'<button class="route" disabled>'+name+' · ур. '+lvl+'</button>'});
  if(hero.run)html+='<p><a href="classic.html">Продолжить сохранённый пошаговый поход</a></p>';
  }else if(page==="routes"&&r){
- html='<small>Зал '+r.room+' из 3 · '+Math.ceil(r.hp)+' ♥</small><h2>Развилка</h2>';
+ html='<small>Зал '+r.room+' из '+(r.total||3)+' · '+Math.ceil(r.hp)+' ♥</small><h2>Развилка</h2>';
  if(r.lastGoal)html+='<p class="completion">✓ '+r.lastGoal+'</p>';
- r.roads.forEach((road,i)=>{const name=r.room===3?keepers[r.tier]:road.elite?"Багровые стражи":"Болотные бесы";const prize=r.room===3?(road.elite?"Редкая вещь +2 к качеству":"Постоянная экипировка"):roadReward(road);
+ r.roads.forEach((road,i)=>{const name=r.room===(r.total||3)?keepers[r.tier]:road.elite?"Багровые стражи":"Болотные бесы";const prize=r.room===(r.total||3)?(road.elite?"Редкая вещь +2 к качеству":"Постоянная экипировка"):roadReward(road);
  const type=contractType(road,r.room),meta=contracts[type],goal=contractGoal(type,r.room,road.elite);
  html+=btn(missionImage(type)+'<div><small>'+(i?"Правая дорога":"Левая дорога")+' · '+(road.elite?"Элита":"Обычный бой")+'</small><b>'+meta.name+'</b><span>'+(type==="boss"?name:meta.hint)+' · '+(type==="survive"?goal+" с":type==="boss"?"1 цель":"×"+goal)+'</span><em>'+prize+'</em></div>',"road:"+i,"route contract")});
  }else if(page==="pause"){
@@ -55,7 +57,9 @@ function show(page){
  }else if(page==="prize"){
  html='<small>Хранитель повержен</small><h2>'+safe(hero.trophy.name)+'</h2><p>Качество +'+hero.trophy.bonus+' · Вещь уже в сумке.</p>'+btn("Надеть сейчас","wearPrize","primary")+" "+btn("Оставить в сумке","close")
  }
- content.innerHTML=html;if(!dialog.open)dialog.showModal();
+ content.innerHTML=html;
+ if(dialog.open)dialog.close();
+ if(page==="bag"&&combat)dialog.show();else dialog.showModal();
 }
 function closeSheet(){if(dialog.open)dialog.close();screen="";clearInput();hud()}
 function roadReward(road){return road.elite?["Лечение +20 ♥","Заточка +4 урона","Оберег +2 защиты"][road.kind]:rewards[road.kind]}
@@ -64,7 +68,7 @@ $("portrait").onclick=$("character").onclick=()=>show("hero");$("inventory").onc
 dialog.addEventListener("cancel",e=>{e.preventDefault();closeSheet()});
 content.onclick=e=>{
  const b=e.target.closest("[data-action]");if(!b)return;const [act,arg]=b.dataset.action.split(":");const idx=Number(arg);
- if(act==="zone"&&!hero.expedition){hero.expedition={tier:idx,room:1,hp:maxHp(),energy:0,force:0,ward:0,roads:routes(),battle:null};$("flash").textContent="";show("routes")}
+ if(act==="zone"&&!hero.expedition){hero.expedition={tier:idx,total:5,flasks:{heal:2,mana:2},room:1,hp:maxHp(),energy:0,force:0,ward:0,roads:routes(),battle:null};$("flash").textContent="";show("routes")}
  if(act==="road"&&!combat&&hero.expedition){begin(idx);closeSheet()}
  if(act==="name"){const s=$("knightName").value.trim();if(s)hero.name=s;show("hero")}
  if(act==="stat"&&hero.points&&["power","agility","mind"].includes(arg)){hero[arg]++;hero.points--;show("hero")}
@@ -73,6 +77,23 @@ content.onclick=e=>{
  if(act==="retreat"){end(false,"Ты вернулся к костру.");closeSheet()}
  if(act==="close")closeSheet();persist();hud();
 };
+function flaskHud(){
+ const r=hero.expedition;r.flasks??={heal:2,mana:2};
+ for(const type of ["heal","mana"]){
+   const el=$(type+"Flask"),full=type==="heal"?r.hp>=maxHp():r.energy>=3;
+   el.disabled=full||r.flasks[type]===0;
+   el.querySelector("span").textContent=(type==="heal"?"♥ ":"✦ ")+r.flasks[type];
+   el.title=(type==="heal"?"Здоровье +16":"Мана +3")+" · осталось "+r.flasks[type];
+ }
+}
+function drink(type){
+ const r=hero.expedition;if(!combat||!r||$(type+"Flask").disabled)return;
+ if(type==="heal")r.hp=Math.min(maxHp(),r.hp+16);else r.energy=3;
+ r.flasks[type]--;effect(combat.x,combat.y,type==="heal"?"+♥":"+✦",type==="heal"?"#ffa698":"#9adbff");
+ persist();hud()
+}
+$("healFlask").onclick=()=>drink("heal");$("manaFlask").onclick=()=>drink("mana");
+$("battleBag").onclick=()=>screen==="bag"?closeSheet():show("bag");
 function begin(idx){
  const r=hero.expedition,road=r.roads[idx],count=2+r.room+(road.elite?1:0);
  combat={x:240,y:186,cooldown:0,mobs:[],time:0,dir:0,walk:false,road};
@@ -122,15 +143,19 @@ function end(win,msg){
  const names=isArmor?["Латы дозорного","Панцирь склепа","Обсидиановые латы"]:style==="twins"?["Клыки брода","Кинжалы склепа","Обсидиановые клинки"]:["Серебряный фальшион","Меч знаменосца","Клинок князя"];
  const it=makeItem(isArmor?"armor":"weapon",names[tier],2+tier*2+(combat.road.elite?2:0)+Math.floor(Math.random()*3),isArmor?null:style);
  hero.bag.push(it);hero.trophy={...it,index:hero.bag.length-1};hero.coins+=12+tier*8;xp(10)}
- hero.expedition=null;combat=null;swing=null;effects=[];$("flash").textContent=msg;persist();hud();if(win)show("prize")
+ if(screen==="bag")closeSheet();hero.expedition=null;combat=null;swing=null;effects=[];$("flash").textContent=msg;persist();hud();if(win)show("prize")
 }
 function finishRoom(){
  const r=hero.expedition;xp(6+r.room*2);hero.shards+=1+Math.floor(Math.random()*3);hero.coins+=2;
- if(r.room===3){end(true,"Добыча хранителя");return}
+ if(r.room===(r.total||3)){end(true,"Добыча хранителя");return}
  const road=combat.road;
  r.lastGoal="Зал пройден · "+roadReward(road);
  if(road.kind===0)r.hp=Math.min(maxHp(),r.hp+(road.elite?20:12));else if(road.kind===1)r.force+=road.elite?4:2;else r.ward+=road.elite?2:1;
- r.room++;r.roads=routes(r.room);r.battle=null;combat=null;effects=[];swing=null;persist();hud();show("routes")
+ const next=r.room+1;r.roads=routes(next,r.total||3);
+ const cx=clamp(combat.x,85,395),y=combat.y>180?118:235;
+ combat.exits=[{x:cx-42,y},{x:cx+42,y}];combat.mobs=[];combat.task.stones=[];
+ effects=[];swing=null;clearInput();persist();hud();
+ $("flash").textContent=r.lastGoal+" · Выбери проход";
 }
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 function update(dt){
@@ -139,6 +164,11 @@ function update(dt){
  let dy=stick.y+Number(keys.has("KeyS")||keys.has("ArrowDown"))-Number(keys.has("KeyW")||keys.has("ArrowUp"));
  const mag=Math.hypot(dx,dy);b.walk=mag>.05;
  b.x=clamp(b.x+dx/Math.max(1,mag)*82*dt,14,466);b.y=clamp(b.y+dy/Math.max(1,mag)*82*dt,16,346);
+ if(b.exits){
+   const door=b.exits.findIndex(g=>Math.hypot(b.x-g.x,b.y-g.y)<13);
+   if(door>=0){r.room++;if(screen==="bag")closeSheet();begin(door);clearInput();$("flash").textContent="";persist()}
+   return
+ }
  for(const m of b.mobs){
  m.delay-=dt;m.flash=Math.max(0,(m.flash||0)-dt);const vx=b.x-m.x,vy=b.y-m.y,dist=Math.hypot(vx,vy);
  if(m.wind>0){m.wind-=dt;if(m.wind<=0){if(Math.hypot(b.x-m.tx,b.y-m.ty)<(m.boss?32:22)){
@@ -165,6 +195,28 @@ function update(dt){
  saveTime+=dt;if(saveTime>=1){persist();saveTime=0}
 }
 function effect(x,y,n,color){effects.push({x,y,n,color,life:.55})}
+function drawDoors(b,r,t){
+ const colors=["#a4e2ce","#ffb996"],next=r.room+1,boss=next===(r.total||3);
+ const midX=(b.exits[0].x+b.exits[1].x)/2,midY=b.exits[0].y;
+ if(Math.hypot(midX-b.x,midY-b.y)>66){
+  ctx.save();ctx.translate(b.x,b.y-8);ctx.rotate(Math.atan2(midY-b.y,midX-b.x));poly("#ffe0a0",28,0,19,-4,21,0,19,4);ctx.restore()
+ }
+ for(const [i,gate] of b.exits.entries()){
+   const road=r.roads[i],tint=colors[Number(road.elite)];
+   ctx.save();ctx.translate(gate.x,gate.y);
+   oval("#273d3d",0,2,19,5);oval("#727c73",0,-12,16,22);
+   rect("#727c73",-16,-12,32,14);oval("#203136",0,-12,12,18);rect("#203136",-12,-12,24,14);
+   glow(0,-9,22,tint+"77");line(tint,2,-12,1,12,1);
+   poly(tint,-3,-1,0,-4,3,-1,0,-2);ctx.textAlign="center";ctx.font="bold 8px sans-serif";
+   const type=contractType(road,next),goal=contractGoal(type,next,road.elite);
+   const mission=contracts[type].name;
+   const amount=type==="survive"?goal+" с":"×"+goal;
+   const loot=boss?(road.elite?"Вещь +2":"Снаряжение"):["♥ +"+(road.elite?20:12),"Урон +"+(road.elite?4:2),"Защита +"+(road.elite?2:1)][road.kind];
+   const label=road.elite?"Элита · "+loot:loot;
+   rect("#152429f2",-39,-57,78,21);ctx.fillStyle="#f2ede0";ctx.fillText(mission,0,-49,75);ctx.fillStyle=tint;ctx.fillText(label,0,-40,75);ctx.fillStyle="#f6ead7";ctx.fillText(amount,0,-10,24);
+   ctx.restore()
+ }
+}
 function arenaArt(t){
  const b=combat,r=hero.expedition;
  const scale=Math.max(width/480,height/360);
@@ -176,12 +228,14 @@ function arenaArt(t){
  poly(["#536661","#566962","#4e615c","#586a63","#4b605d"][v],x+1,y+2,x+30,y+1,x+32,y+14,x+27,y+18,x+2,y+17);
  if(v===1)line("#425952",.7,x+6,y+2,x+10,y+8)
  }
+ if(r.room>1)rect(["#0000","#273b770e","#7a412726","#34397626","#6d253738"][r.room-1],0,0,480,360);
  ctx.strokeStyle="#a79c734d";ctx.lineWidth=2;for(const rad of [54,60]){ctx.beginPath();ctx.arc(240,180,rad,0,Math.PI*2);ctx.stroke()}
  for(let i=0;i<16;i++){const a=i*Math.PI/8;line("#b0a47b88",2,240+Math.cos(a)*54,180+Math.sin(a)*54,240+Math.cos(a)*58,180+Math.sin(a)*58)}
  for(let i=0;i<12;i++){const x=12+i*41;rect("#273e41",x,0,14,17);rect("#6d7770",x,0,14,6)}
  for(const [x,y] of [[28,32],[452,32],[28,330],[452,330]]){oval("#243837",x,y+4,10,5);rect("#45494a",x-4,y-12,8,17);glow(x,y-13,26,"#ffb86866");poly("#e7a45f",x-5,y-10,x-4,y-17,x,y-24+Math.sin(t*8)*2,x+5,y-14,x+3,y-10)}
  for(const m of b.mobs)if(m.wind>0){oval("#e66c532e",m.tx,m.ty,m.boss?32:22,m.boss?32:22);ctx.strokeStyle="#ff9b70";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(m.tx,m.ty,m.boss?32:22,0,Math.PI*2);ctx.stroke()}
- if(b.task.type==="gather"){
+ if(b.exits)drawDoors(b,r,t);
+ if(b.task.type==="gather"&&!b.exits){
  for(const stone of b.task.stones){glow(stone.x,stone.y-4,18,"#66fff080");crystal(ctx,stone.x,stone.y-4+Math.sin(t*3)*1.5,.66)}
  const nearest=b.task.stones.reduce((p,s)=>!p||Math.hypot(s.x-b.x,s.y-b.y)<Math.hypot(p.x-b.x,p.y-b.y)?s:p,null);
  if(nearest&&Math.hypot(nearest.x-b.x,nearest.y-b.y)>40){
@@ -209,7 +263,7 @@ stage.addEventListener("click",e=>{
  if(Math.abs(x-.80)<.085&&y>.40&&y<.60)navigate();
 });
 const controls=["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
-addEventListener("keydown",e=>{if(!combat||dialog.open||!controls.includes(e.code))return;e.preventDefault();keys.add(e.code)});
+addEventListener("keydown",e=>{if(!combat||(dialog.open&&screen!=="bag")||!controls.includes(e.code))return;e.preventDefault();keys.add(e.code)});
 addEventListener("keyup",e=>keys.delete(e.code));
 const pad=$("stick");
 function moveStick(e){if(e.pointerId!==pointer)return;const box=pad.getBoundingClientRect(),dx=e.clientX-box.left-box.width/2,dy=e.clientY-box.top-box.height/2;
@@ -217,12 +271,12 @@ function moveStick(e){if(e.pointerId!==pointer)return;const box=pad.getBoundingC
 pad.onpointerdown=e=>{if(pointer!==null)return;pointer=e.pointerId;pad.setPointerCapture(pointer);moveStick(e)};
 pad.onpointermove=moveStick;
 pad.onlostpointercapture=pad.onpointercancel=pad.onpointerup=e=>{if(e.pointerId===pointer)clearInput()};
-function suspend(){clearInput();persist();if(combat&&!dialog.open)show("pause")}
+function suspend(){clearInput();persist();if(combat&&(!dialog.open||screen==="bag"))show("pause")}
 document.addEventListener("visibilitychange",()=>{if(document.hidden)suspend()});
 addEventListener("blur",suspend);addEventListener("pagehide",persist);
 function frame(ms){
  const dt=Math.min(.05,(ms-prev)/1000);prev=ms;
- if(combat&&!dialog.open&&!document.hidden)update(dt);
+ if(combat&&(!dialog.open||screen==="bag")&&!document.hidden)update(dt);
  if(combat)arenaArt(ms/1000);else campArt(ms/1000,hero,ms<raisedUntil);
  requestAnimationFrame(frame)
 }
