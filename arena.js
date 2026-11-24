@@ -31,6 +31,30 @@ function hud(){
  $("hint").textContent=r?"Движение: джойстик, WASD или стрелки. Удары и руна срабатывают сами.":"Коснись рыцаря, чтобы осмотреть его, или войди в портал.";
 }
 function clearInput(){keys.clear();pointer=null;stick={x:0,y:0};$("stick").firstElementChild.style.transform=""}
+const layoutDialog=$("layoutDialog"), layoutKey="ash-knight-controls-v1";
+const positions=["left","center","right"];
+let savedLayout="";
+try{savedLayout=localStorage.getItem(layoutKey)||""}catch{}
+if(!positions.includes(savedLayout))savedLayout="";
+function applyLayout(value){
+ $("field").dataset.layout=value;
+ layoutDialog.querySelector('input[value="'+value+'"]').checked=true;
+ clearInput()
+}
+function openSettings(){
+ applyLayout(savedLayout||"center");
+ if(!layoutDialog.open)layoutDialog.showModal();
+ layoutDialog.querySelector("input:checked").focus({preventScroll:true})
+}
+layoutDialog.onchange=e=>{if(positions.includes(e.target.value))applyLayout(e.target.value)};
+layoutDialog.querySelector("form").onsubmit=e=>{
+ e.preventDefault();
+ savedLayout=layoutDialog.querySelector("input:checked").value;
+ try{localStorage.setItem(layoutKey,savedLayout)}catch{$("saveError").textContent="Не удалось сохранить раскладку на устройстве."}
+ layoutDialog.close()
+};
+layoutDialog.addEventListener("close",()=>{applyLayout(savedLayout||"center")});
+$("settings").onclick=openSettings;
 function show(page){
  clearInput();screen=page;const r=hero.expedition;
  let html="";
@@ -53,7 +77,7 @@ function show(page){
  const type=contractType(road,r.room),meta=contracts[type],goal=contractGoal(type,r.room,road.elite);
  html+=btn(missionImage(type)+'<div><small>'+(i?"Правая дорога":"Левая дорога")+' · '+(road.elite?"Элита":"Обычный бой")+'</small><b>'+meta.name+'</b><span>'+(type==="boss"?name:meta.hint)+' · '+(type==="survive"?goal+" с":type==="boss"?"1 цель":"×"+goal)+'</span><em>'+prize+'</em></div>',"road:"+i,"route contract")});
  }else if(page==="pause"){
- html='<h2>Поход приостановлен</h2>'+btn("Продолжить","close","primary")+" "+btn("Отступить в лагерь","retreat");
+ html='<h2>Поход приостановлен</h2>'+btn('⚙ Настройки','settings')+' '+btn("Продолжить","close","primary")+" "+btn("Отступить в лагерь","retreat");
  }else if(page==="prize"){
  html='<small>Хранитель повержен</small><h2>'+safe(hero.trophy.name)+'</h2><p>Качество +'+hero.trophy.bonus+' · Вещь уже в сумке.</p>'+btn("Надеть сейчас","wearPrize","primary")+" "+btn("Оставить в сумке","close")
  }
@@ -69,6 +93,7 @@ dialog.addEventListener("cancel",e=>{e.preventDefault();closeSheet()});
 content.onclick=e=>{
  const b=e.target.closest("[data-action]");if(!b)return;const [act,arg]=b.dataset.action.split(":");const idx=Number(arg);
  if(act==="zone"&&!hero.expedition){hero.expedition={tier:idx,total:5,flasks:{heal:2,mana:2},room:1,hp:maxHp(),energy:0,force:0,ward:0,roads:routes(),battle:null};$("flash").textContent="";show("routes")}
+ if(act==="settings"){openSettings();return}
  if(act==="road"&&!combat&&hero.expedition){begin(idx);closeSheet()}
  if(act==="name"){const s=$("knightName").value.trim();if(s)hero.name=s;show("hero")}
  if(act==="stat"&&hero.points&&["power","agility","mind"].includes(arg)){hero[arg]++;hero.points--;show("hero")}
@@ -263,7 +288,7 @@ stage.addEventListener("click",e=>{
  if(Math.abs(x-.80)<.085&&y>.40&&y<.60)navigate();
 });
 const controls=["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
-addEventListener("keydown",e=>{if(!combat||(dialog.open&&screen!=="bag")||!controls.includes(e.code))return;e.preventDefault();keys.add(e.code)});
+addEventListener("keydown",e=>{if(!combat||layoutDialog.open||(dialog.open&&screen!=="bag")||!controls.includes(e.code))return;e.preventDefault();keys.add(e.code)});
 addEventListener("keyup",e=>keys.delete(e.code));
 const pad=$("stick");
 function moveStick(e){if(e.pointerId!==pointer)return;const box=pad.getBoundingClientRect(),dx=e.clientX-box.left-box.width/2,dy=e.clientY-box.top-box.height/2;
@@ -276,9 +301,10 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)suspend()})
 addEventListener("blur",suspend);addEventListener("pagehide",persist);
 function frame(ms){
  const dt=Math.min(.05,(ms-prev)/1000);prev=ms;
- if(combat&&(!dialog.open||screen==="bag")&&!document.hidden)update(dt);
+ if(combat&&!layoutDialog.open&&(!dialog.open||screen==="bag")&&!document.hidden)update(dt);
  if(combat)arenaArt(ms/1000);else campArt(ms/1000,hero,ms<raisedUntil);
  requestAnimationFrame(frame)
 }
 if(hero.expedition?.battle){combat=hero.expedition.battle;combat.task??={type:"clear",goal:combat.mobs.length,kills:0,found:0,stones:[]};show("pause")}else if(hero.expedition)show("routes");
+applyLayout(savedLayout||"center");if(!savedLayout)openSettings();
 hud();requestAnimationFrame(frame);
