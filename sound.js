@@ -59,37 +59,49 @@ const soundscape = (() => {
     source.connect(filter); filter.connect(volume); volume.connect(bus);
     source.start(time, Math.random()*.8); source.stop(time+tail);
   }
-  const frequency = note => 440 * 2 ** ((note-69)/12);
-  function string(t, note, strength, tail) {
-    const hz = frequency(note);
-    voice(music,t,hz,tail,strength,"triangle");
-    voice(music,t,hz*2.002,tail*.43,strength*.38);
-    brush(music,t,3200,900,.05,strength*.22);
+  const scoreBuffers = new Map();
+  let desiredScore = "", activeScore = null, retryAfter = 0;
+  async function changeScore(name) {
+    desiredScore = name;
+    try {
+      if (!scoreBuffers.has(name)) {
+        const loading = fetch(name + ".m4a").then(response => {
+          if (!response.ok) throw Error("Music unavailable");
+          return response.arrayBuffer();
+        }).then(bytes => context.decodeAudioData(bytes));
+        scoreBuffers.set(name, loading);
+      }
+      const buffer = await scoreBuffers.get(name);
+      if (desiredScore !== name || activeScore?.name === name) return;
+      const now = context.currentTime, fade = .75;
+      const source = context.createBufferSource(), envelope = context.createGain();
+      source.buffer = buffer; source.loop = true;
+      envelope.gain.setValueAtTime(0, now);
+      envelope.gain.linearRampToValueAtTime(.65, now + fade);
+      source.connect(envelope); envelope.connect(music);
+      source.onended = () => { source.disconnect(); envelope.disconnect() };
+      if (activeScore) {
+        activeScore.envelope.gain.cancelAndHoldAtTime?.(now);
+        activeScore.envelope.gain.linearRampToValueAtTime(0, now + fade);
+        activeScore.source.stop(now + fade + .02);
+      }
+      source.start(); activeScore = {name, source, envelope};
+    } catch {
+      scoreBuffers.delete(name);
+      if (desiredScore === name) { desiredScore = ""; retryAfter = performance.now()+30000 }
+    }
   }
-  const phrases = {
-    ford: [0,null,7,null,12,10,null,7, 3,null,null,5,7,null,null,null],
-    yard: [0,7,null,3,5,null,10,7, 0,null,3,7,5,null,null,2],
-    fight:[0,7,12,null,10,7,3,5, 0,3,7,10,12,null,7,5],
-    boss: [0,1,7,0,10,7,1,5, 0,7,12,1,10,7,5,1]
-  };
   function tick(place) {
     if (!context || context.state !== "running" || document.hidden) return;
     const now = context.currentTime;
     if (place !== scene) { scene=place; beat=0; next=now+.03 }
     if (next<now) next=now+.015;
     const battle = place==="fight" || place==="boss";
+    const score = battle ? "ward-score" : "ferry-score";
+    if (+controls[0].value && desiredScore !== score && performance.now() >= retryAfter) changeScore(score);
     const step = {ford:.39,yard:.33,fight:.245,boss:.208}[place];
     while (next < now+.11) {
-      const t=next, i=beat%16, root=50+[0,-2,-5,-7][Math.floor(beat/16)%4];
-      if (+controls[0].value) {
-        const note=phrases[place][i];
-        if (note!==null) string(t,root+note+(battle?0:12),i%4?.073:.11,battle?.37:1.35);
-        if (i%4===0) voice(music,t,frequency(root-12),step*3.7,.14,"triangle",frequency(root-12),.045);
-        if (battle && (i%4===0 || i===11 || place==="boss" && i%4===2)) {
-          voice(music,t,145,.23,.26,"sine",52); brush(music,t,1500,390,.12,.16);
-        }
-        if (battle && i%2) brush(music,t,4500,2300,.09,.085);
-      }
+      const t=next, i=beat%16;
       if (+controls[1].value && place==="ford" && i%8===5) brush(foley,t,820,410,1.2,.043);
       if (+controls[1].value && !battle && (i===3 || i===13)) brush(foley,t,1900,760,.09,.031);
       beat++; next+=step;
