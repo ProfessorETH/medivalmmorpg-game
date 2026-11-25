@@ -29,7 +29,7 @@ function bagPage(){
  }).join("");
  const items=hero.bag.map((it,i)=>({it,i})).filter(({it})=>it.kind===bagSlot);
  const options=items.map(({it,i})=>'<div class="gear-item">'+gearImage(it.kind,it.style,it)+'<div><strong>'+safe(it.name)+'</strong><span>'+ (it.kind==="weapon"?"Урон +":it.kind==="armor"?"Защита +":"Здоровье +")+it.bonus+'</span></div>'+(i===worn?"Надето":btn("Надеть","equip:"+i))+'</div>').join("");
- return '<small>Снаряжение · ур. '+hero.level+'</small><h2>'+safe(hero.name)+'</h2><div class="paperdoll"><canvas id="paperKnight" width="240" height="380" aria-label="Рыцарь в надетой экипировке"></canvas>'+slots+'</div><h3>'+fittings[bagSlot][0]+' · '+(picked?safe(picked.name):"Свободно")+'</h3>'+ (options||'<p>В сумке пока нет предмета для этой ячейки.</p>')+'<p>Руда · '+hero.shards+(combat?"　Бой продолжается":"")+'</p>'
+ return '<small>Снаряжение · ур. '+hero.level+'</small><h2>'+classes[appearance()].title+'</h2><div class="paperdoll"><canvas id="paperKnight" width="240" height="380" aria-label="Рыцарь в надетой экипировке"></canvas>'+slots+'</div><h3>'+fittings[bagSlot][0]+' · '+(picked?safe(picked.name):"Свободно")+'</h3>'+ (options||'<p>В сумке пока нет предмета для этой ячейки.</p>')+'<p>Руда · '+hero.shards+(combat?"　Бой продолжается":"")+'</p>'
 }
 function drawPaperKnight(){
  const c=$("paperKnight");if(!c)return;

@@ -1,11 +1,16 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const key="ash-knight-v1", dialog=$("sheet"), content=$("inside");
-const origins={bogatyr:"Богатырь",bellringer:"Звонарь"};
-function appearance(){return Object.hasOwn(origins,hero.origin)?hero.origin:"bogatyr"}
+const classes={
+ bogatyr:{title:"Богатырь",trait:"Крепкое сердце",effect:"+8 к запасу здоровья",health:8,rune:0,model:"bogatyr-equipped.webp"},
+ bellringer:{title:"Звонарь",trait:"Гул переправы",effect:"+4 к урону рунического удара",health:0,rune:4,model:"bellringer-model.webp"}
+};
+function appearance(){return Object.hasOwn(classes,hero.origin)?hero.origin:"bogatyr"}
 const makeItem=(kind,name,bonus,style=null)=>({kind,name,bonus,style});
-const fresh=()=>({needsCreation:true,name:"Странник",level:1,xp:0,points:0,power:1,agility:1,mind:1,coins:0,gear:{weapon:0,armor:2},bag:[makeItem("weapon","Длинный меч",1,"sword"),makeItem("weapon","Парные клинки",1,"twins"),makeItem("armor","Походная кольчуга",1)],run:null});
+const fresh=()=>({needsCreation:true,name:"Безымянный",level:1,xp:0,points:0,power:1,agility:1,mind:1,coins:0,gear:{weapon:0,armor:2},bag:[makeItem("weapon","Длинный меч",1,"sword"),makeItem("weapon","Парные клинки",1,"twins"),makeItem("armor","Походная кольчуга",1)],run:null});
 let hero;try{hero=JSON.parse(localStorage.getItem(key))||fresh()}catch{hero=fresh()}
+// Saves from before classes keep their chosen appearance and all accumulated gear.
+if(!hero.classChosen)hero.needsCreation=true;
 hero.chapter??=0;hero.shards??=0;hero.expedition??=null;
 if(!hero.baseKit){
  for(const [kind,name] of [["head","Походный шлем"],["cloak","Плащ переправы"],["hands","Дорожные перчатки"],["feet","Походные сапоги"]]){
@@ -15,7 +20,7 @@ if(!hero.baseKit){
  hero.baseKit=true;persist()
 }
 const weapon=()=>hero.bag[hero.gear.weapon], armor=()=>hero.bag[hero.gear.armor];
-const maxHp=()=>38+hero.level*3+armor().bonus*3+Object.entries(hero.gear).reduce((hp,[kind,idx])=>hp+(kind==="weapon"||kind==="armor"?0:hero.bag[idx]?.bonus||0),0);
+const maxHp=()=>38+classes[appearance()].health+hero.level*3+armor().bonus*3+Object.entries(hero.gear).reduce((hp,[kind,idx])=>hp+(kind==="weapon"||kind==="armor"?0:hero.bag[idx]?.bonus||0),0);
 function persist(){try{localStorage.setItem(key,JSON.stringify(hero))}catch{$("saveError").textContent="Устройству не удалось сохранить прогресс."}}
 function xp(n){hero.xp+=n;while(hero.xp>=hero.level*18){hero.xp-=hero.level*18;hero.level++;hero.points++}}
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -56,7 +61,7 @@ function hud(){
  $("title").textContent=r?zoneNames[r.tier]:"Замок переправы";
  $("character").querySelector("img").src=appearance()+".webp";
  $("gold").textContent="◈ "+hero.coins;
- $("vitals").textContent=r?"♥ "+Math.ceil(r.hp)+"/"+maxHp()+"　✦ "+r.energy+"/3"+(combat?"　Враги: "+combat.mobs.length:""):hero.name+"　·　ур. "+hero.level;
+ $("vitals").textContent=r?"♥ "+Math.ceil(r.hp)+"/"+maxHp()+"　✦ "+r.energy+"/3"+(combat?"　Враги: "+combat.mobs.length:""):classes[appearance()].title+"　·　ур. "+hero.level;
  $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat||!!combat.exits||!!combat.returnGate;if(combat&&!combat.exits&&!combat.returnGate)goalHud();
  $("dash").hidden=!combat||!r;
  if(r?.boons){const marks=Object.entries(r.boons).map(([kind,n])=>sigils[kind].name+" "+n);$("vitals").textContent+="　"+marks.join(" · ")}
@@ -112,17 +117,18 @@ layoutDialog.querySelector("form").onsubmit=e=>{
 layoutDialog.addEventListener("close",()=>{applyLayout(savedLayout||"center")});
 $("settings").onclick=openSettings;
 function show(page){
+ if(page==="hero"&&hero.needsCreation&&!hero.expedition)page="create";
  clearInput();screen=page;const r=hero.expedition;
  let html="";
  dialog.classList.toggle("live-bag",page==="bag"&&!!combat);
  $("close").hidden=page==="create"&&hero.needsCreation;
  if(page==="create"){
- const cards=Object.entries(origins).map(([id,title])=>'<label><input type="radio" name="origin" value="'+id+'" '+(appearance()===id?'checked':'')+'><img src="'+id+'.webp" alt=""><strong>'+title+'</strong></label>').join("");
- html='<form id="createHero"><small>Сказания переправы</small><h2>Кто идёт к броду?</h2><p>Колокол умолк три ночи назад. Сегодня паром вернулся сам. На мокрой скамье лежит меч твоего отца.</p><fieldset class="origins"><legend>Облик героя</legend>'+cards+'</fieldset><label>Имя героя<input required maxlength="24" name="heroName" autocomplete="off" value="'+(hero.needsCreation?'':safe(hero.name))+'"></label><button class="primary">'+(hero.needsCreation?'Ступить на берег':'Сохранить')+'</button></form>';
+ const cards=Object.entries(classes).map(([id,c])=>'<label><input type="radio" name="origin" value="'+id+'" '+(appearance()===id?'checked':'')+'><img src="'+c.model+'" alt=""><strong>'+c.title+'</strong><span>'+c.effect+'</span></label>').join("");
+ html='<form id="createHero"><small>Колокольный брод</small><h2>Кто сошёл с парома?</h2><p>Твоего имени на берегу никто не знает. На мокрой скамье лежит меч твоего отца.</p><fieldset class="origins"><legend>Стартовый класс</legend>'+cards+'</fieldset><button class="primary">Ступить на берег</button></form>';
  }else if(page==="hero"){
- html='<img class="hero-icon" src="'+appearance()+'.webp" alt=""><small>'+origins[appearance()]+' переправы</small><h2>'+safe(hero.name)+'</h2><p>Уровень '+hero.level+' · Опыт '+hero.xp+'/'+(18*hero.level)+' · Свободных очков '+hero.points+'</p>';
+ html='<img class="hero-icon" src="'+appearance()+'.webp" alt=""><small>Безымянный герой</small><h2>'+classes[appearance()].title+'</h2><p>Уровень '+hero.level+' · Опыт '+hero.xp+'/'+(18*hero.level)+' · Свободных очков '+hero.points+'</p>';
  for(const [k,title] of [["power","Сила"],["agility","Ловкость"],["mind","Интеллект"]])html+='<div class="row">'+title+' · '+hero[k]+(hero.points?btn("+1","stat:"+k):"")+'</div>';
- html+=btn("Изменить героя","editHero");
+ html+='<p><b>'+classes[appearance()].trait+'</b> · '+classes[appearance()].effect+'</p>';
  }else if(page==="bag"){
  html=bagPage();
  }else if(page==="forge"){html=forgePanel()
@@ -157,12 +163,11 @@ dialog.addEventListener("cancel",e=>{e.preventDefault();closeSheet()});
 content.onsubmit=e=>{
  if(e.target.id!=="createHero")return;
  e.preventDefault();
- const form=e.target,field=form.elements.heroName,name=field.value.trim(),origin=form.elements.origin.value;
- if(!name){field.value="";field.reportValidity();return}
- if(!Object.hasOwn(origins,origin))return;
- const first=hero.needsCreation;
- Object.assign(hero,{name,origin,needsCreation:false});persist();closeSheet();
- if(first&&!savedLayout)openSettings();else if(!first)show("hero")
+ const origin=e.target.elements.origin.value;
+ if(!hero.needsCreation||!Object.hasOwn(classes,origin))return;
+ Object.assign(hero,{origin,classChosen:true,needsCreation:false});persist();closeSheet();
+ if(!savedLayout)openSettings()
+
 };
 content.onclick=e=>{
  const b=e.target.closest("[data-action]");if(!b)return;const [act,arg]=b.dataset.action.split(":");const idx=Number(arg);
@@ -174,7 +179,6 @@ content.onclick=e=>{
  }
  if(act==="settings"){openSettings();return}
  if(act==="road"&&!combat&&hero.expedition){depart(hero.expedition.mode==="story"?"stairs":"portal",idx)}
- if(act==="editHero")show("create");
  if(act==="stat"&&hero.points&&["power","agility","mind"].includes(arg)){hero[arg]++;hero.points--;show("hero")}
  if(act==="slot"&&fittings[arg]){bagSlot=arg;show("bag")}
  if(act==="equip"&&hero.bag[idx]){hero.gear[hero.bag[idx].kind]=idx;if(hero.expedition)hero.expedition.hp=Math.min(hero.expedition.hp,maxHp());raisedUntil=performance.now()+1600;show("bag")}
@@ -337,7 +341,7 @@ function update(dt){
  const rune=r.energy>=3,crit=Math.random()<Math.min(.55,.04*hero.agility+(twin?.12:0));
  const proc=buildStrike(r,b);
  soundscape.play(proc.discharge?"lightning":chargedSword?"sweep":twin?"twins":"steel");
- const hit=proc.impact+(3+weapon().bonus+hero.power+r.force)*(crit?2:1)+(rune?4+hero.mind*2:0);
+ const hit=proc.impact+(3+weapon().bonus+hero.power+r.force)*(crit?2:1)+(rune?4+hero.mind*2+classes[appearance()].rune:0);
  b.dir=Math.atan2(target.y-b.y,target.x-b.x);
  const path=twin&&proc.discharge?lightningTargets(target,b.mobs):null;
  if(path)b.buildFx={start:b.time,path:[b,...path].map(m=>({x:m.x,y:m.y-12}))};

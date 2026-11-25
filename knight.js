@@ -2,6 +2,7 @@
 // Faceted armour sections are described by horizontal elliptical cross-sections.
 // Coordinates are in model space: the face and the shield point toward negative Y.
 function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=0,seated=0,turn=0){
+ if(blenderActor(x,y,size,weapon,time,walking,raised,slash,seated,turn))return;
  const faces=[],yaw=-.46-.62*seated+turn,sy=Math.sin(yaw),cy=Math.cos(yaw);
  const shade=(rgb,n)=>"rgb("+rgb.map((v,i)=>Math.min(255,Math.round(v*(.63+.46*n)+(i===0?12+seated*36:i===1?4+seated*11:4)*Math.max(0,n)))).join(",")+")";
  const worn=kind=>hero.bag[hero.gear[kind]];
