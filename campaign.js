@@ -7,7 +7,7 @@ const chapters=[
 function forgePrice(){return hero.metSmith?2+2*(weapon().tempered||0):0}
 function forgePanel(){
  const blade=weapon(),cost=forgePrice();
- return '<small>Двор привратника · Кузница</small><h2>Мастер Радан</h2><p>'+(!hero.metSmith?"«До ночи нужен колокол. Дай сюда клинок — первую заточку я беру на себя».":"«Руда у тебя, огонь у меня. Давай посмотрим на кромку».")+'</p><div class="forge-blade">'+gearImage("weapon",blade.style,blade)+'<div><b>'+safe(blade.name)+'</b><p>Урон +'+blade.bonus+' → +'+(blade.bonus+1)+'</p></div></div><p>Руда в сумке · '+hero.shards+'</p>'+(hero.shards>=cost?btn(cost?"Закалить · "+cost+" руды":"Заточить бесплатно","temper","primary"):'<button disabled>Нужно руды · '+cost+'</button>')+(hero.metSmith&&hero.chapter<3?btn("Узнать поручение","brief"):"")
+ return '<small>Двор привратника · Кузница</small><h2>Мастер Радан</h2><p>'+(!hero.metSmith?"«'+safe(hero.name)+', этот клинок я ковал твоему отцу. Слышишь стук под наковальней? С тех пор как под бродом разошлась земля, оттуда стучат каждую ночь. Дай поправлю кромку».":"«Руда у тебя, огонь у меня. Давай посмотрим на кромку».")+'</p><div class="forge-blade">'+gearImage("weapon",blade.style,blade)+'<div><b>'+safe(blade.name)+'</b><p>Урон +'+blade.bonus+' → +'+(blade.bonus+1)+'</p></div></div><p>Руда в сумке · '+hero.shards+'</p>'+(hero.shards>=cost?btn(cost?"Закалить · "+cost+" руды":"Заточить бесплатно","temper","primary"):'<button disabled>Нужно руды · '+cost+'</button>')+(hero.metSmith&&hero.chapter<3?btn("Узнать поручение","brief"):"")
 }
 function storyPanel(){
  const c=chapters[hero.chapter];

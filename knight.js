@@ -7,7 +7,8 @@ function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=
  const worn=kind=>hero.bag[hero.gear[kind]];
  const helm=worn("head")?.bonus>0, mantle=worn("cloak")?.bonus>0, gauntlets=worn("hands")?.bonus>0, boots=worn("feet")?.bonus>0;
  const plate=worn("armor")?.name;
- const iron=plate==="Обсидиановые латы"?[86,70,101]:plate==="Панцирь склепа"?[105,147,137]:armor>1?[145,159,172]:[121,137,161],edge=[186,196,208],dark=[55,64,87],ox=[79,81,98],red=[150,36,51],fold=[93,30,48],brass=[200,155,94],hide=[81,55,55];
+ const bellringer=hero.origin==="bellringer";
+ const iron=plate==="Обсидиановые латы"?[86,70,101]:plate==="Панцирь склепа"?[105,147,137]:armor>1?[145,159,172]:[121,137,161],edge=[186,196,208],dark=[55,64,87],ox=[79,81,98],red=bellringer?[46,99,104]:[154,60,38],fold=bellringer?[31,62,70]:[93,44,35],brass=[200,155,94],hide=[81,55,55];
  let legLift=0;
  const project=([a,b,z])=>{z+=legLift*Math.max(0,1-z/34);if(walking)b-=Math.max(0,z-27)*.095;b-=Math.max(0,z-22)*.16*seated;return [a*cy-b*sy,(a*sy+b*cy)*.19-z,a*sy+b*cy-z*.19]};
  function face(points,color){
@@ -94,7 +95,9 @@ function knightAt(x,y,size,weapon,time,walking=false,raised=false,armor=1,slash=
   shell(0,0,[[neck+9,9.7,10.2,2],[neck+10.4,9.8,10.1,2]],brass,10);
   face([[0,-9,neck+11],[0,-7,neck+18],[0,1,neck+25],[0,7,neck+18]],ivory)
  }
- else for(let i=0;i<5;i++){
+ else if(bellringer){
+  shell(0,1,[[neck+8,9,8],[neck+14,9,8],[neck+19,6,6],[neck+20,3,3]],hide,12)
+ }else for(let i=0;i<5;i++){
   const a=(i-2)*1.4,wave=Math.sin(time*2+i*.65)*1.2;
   face([[a,0,neck+19],[a-1,1,neck+23],[a+4,6,neck+26-i*.4],[a+8,12,neck+25],[a+11+wave,walking?27:20,neck+12-i],[a+4,10,neck+21]],i%2?red:fold)
  }

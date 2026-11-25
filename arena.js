@@ -1,8 +1,10 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const key="ash-knight-v1", dialog=$("sheet"), content=$("inside");
+const origins={bogatyr:"Богатырь",bellringer:"Звонарь"};
+function appearance(){return Object.hasOwn(origins,hero.origin)?hero.origin:"bogatyr"}
 const makeItem=(kind,name,bonus,style=null)=>({kind,name,bonus,style});
-const fresh=()=>({name:"Странник",level:1,xp:0,points:0,power:1,agility:1,mind:1,coins:0,gear:{weapon:0,armor:2},bag:[makeItem("weapon","Длинный меч",1,"sword"),makeItem("weapon","Парные клинки",1,"twins"),makeItem("armor","Походная кольчуга",1)],run:null});
+const fresh=()=>({needsCreation:true,name:"Странник",level:1,xp:0,points:0,power:1,agility:1,mind:1,coins:0,gear:{weapon:0,armor:2},bag:[makeItem("weapon","Длинный меч",1,"sword"),makeItem("weapon","Парные клинки",1,"twins"),makeItem("armor","Походная кольчуга",1)],run:null});
 let hero;try{hero=JSON.parse(localStorage.getItem(key))||fresh()}catch{hero=fresh()}
 hero.chapter??=0;hero.shards??=0;hero.expedition??=null;
 if(!hero.baseKit){
@@ -52,6 +54,7 @@ function hud(){
  const r=hero.expedition;
  $("area").textContent=r?"Северное пограничье · зал "+r.room+"/"+(r.total||3):"Северное пограничье · убежище "+(hero.level>=5?"III":hero.level>=3?"II":"I");
  $("title").textContent=r?zoneNames[r.tier]:"Замок переправы";
+ $("character").querySelector("img").src=appearance()+".webp";
  $("gold").textContent="◈ "+hero.coins;
  $("vitals").textContent=r?"♥ "+Math.ceil(r.hp)+"/"+maxHp()+"　✦ "+r.energy+"/3"+(combat?"　Враги: "+combat.mobs.length:""):hero.name+"　·　ур. "+hero.level;
  $("field").classList.toggle("fighting",!!combat);$("objective").hidden=!combat||!!combat.exits||!!combat.returnGate;if(combat&&!combat.exits&&!combat.returnGate)goalHud();
@@ -112,10 +115,14 @@ function show(page){
  clearInput();screen=page;const r=hero.expedition;
  let html="";
  dialog.classList.toggle("live-bag",page==="bag"&&!!combat);
- if(page==="hero"){
- html='<img class="hero-icon" src="knight-portrait.webp" alt=""><small>Рыцарь переправы</small><h2>'+safe(hero.name)+'</h2><p>Уровень '+hero.level+' · Опыт '+hero.xp+'/'+(18*hero.level)+' · Свободных очков '+hero.points+'</p>';
+ $("close").hidden=page==="create"&&hero.needsCreation;
+ if(page==="create"){
+ const cards=Object.entries(origins).map(([id,title])=>'<label><input type="radio" name="origin" value="'+id+'" '+(appearance()===id?'checked':'')+'><img src="'+id+'.webp" alt=""><strong>'+title+'</strong></label>').join("");
+ html='<form id="createHero"><small>Сказания переправы</small><h2>Кто идёт к броду?</h2><p>Колокол умолк три ночи назад. Сегодня паром вернулся сам. На мокрой скамье лежит меч твоего отца.</p><fieldset class="origins"><legend>Облик героя</legend>'+cards+'</fieldset><label>Имя героя<input required maxlength="24" name="heroName" autocomplete="off" value="'+(hero.needsCreation?'':safe(hero.name))+'"></label><button class="primary">'+(hero.needsCreation?'Ступить на берег':'Сохранить')+'</button></form>';
+ }else if(page==="hero"){
+ html='<img class="hero-icon" src="'+appearance()+'.webp" alt=""><small>'+origins[appearance()]+' переправы</small><h2>'+safe(hero.name)+'</h2><p>Уровень '+hero.level+' · Опыт '+hero.xp+'/'+(18*hero.level)+' · Свободных очков '+hero.points+'</p>';
  for(const [k,title] of [["power","Сила"],["agility","Ловкость"],["mind","Интеллект"]])html+='<div class="row">'+title+' · '+hero[k]+(hero.points?btn("+1","stat:"+k):"")+'</div>';
- html+='<label>Имя<input id="knightName" maxlength="24" value="'+safe(hero.name)+'"></label>'+btn("Сохранить имя","name");
+ html+=btn("Изменить героя","editHero");
  }else if(page==="bag"){
  html=bagPage();
  }else if(page==="forge"){html=forgePanel()
@@ -139,7 +146,7 @@ function show(page){
  if(dialog.open)dialog.close();
  if(page==="bag"&&combat)dialog.show();else dialog.showModal();
 }
-function closeSheet(){if((screen==="forge"||screen==="story")&&atAnvil&&!travel){travel={to:"smithBack",p:0};atAnvil=false}if(dialog.open)dialog.close();screen="";clearInput();hud()}
+function closeSheet(){if(screen==="create"&&hero.needsCreation)return;if((screen==="forge"||screen==="story")&&atAnvil&&!travel){travel={to:"smithBack",p:0};atAnvil=false}if(dialog.open)dialog.close();screen="";clearInput();hud()}
 function roadReward(road){return road.elite?["Лечение +20 ♥","Заточка +4 урона","Оберег +2 защиты"][road.kind]:rewards[road.kind]}
 function navigate(){if(travel)return;if(combat)show("pause");else if(hero.expedition)show("routes");else storyAction()}
 $("roadEntry").onclick=enterRoad;
@@ -147,6 +154,16 @@ $("keep").onclick=()=>depart("castle");$("returnCamp").onclick=()=>depart("camp"
 $("portrait").onclick=$("character").onclick=()=>show("hero");$("inventory").onclick=()=>show("bag");$("smith").onclick=()=>depart("smith");$("stairs").onclick=storyAction;
 $("portal").onclick=()=>{if(!travel&&!hero.expedition&&hero.level>=10)show("zones")};$("venture").onclick=navigate;$("pause").onclick=()=>show("pause");$("close").onclick=closeSheet;
 dialog.addEventListener("cancel",e=>{e.preventDefault();closeSheet()});
+content.onsubmit=e=>{
+ if(e.target.id!=="createHero")return;
+ e.preventDefault();
+ const form=e.target,field=form.elements.heroName,name=field.value.trim(),origin=form.elements.origin.value;
+ if(!name){field.value="";field.reportValidity();return}
+ if(!Object.hasOwn(origins,origin))return;
+ const first=hero.needsCreation;
+ Object.assign(hero,{name,origin,needsCreation:false});persist();closeSheet();
+ if(first&&!savedLayout)openSettings();else if(!first)show("hero")
+};
 content.onclick=e=>{
  const b=e.target.closest("[data-action]");if(!b)return;const [act,arg]=b.dataset.action.split(":");const idx=Number(arg);
  if(act==="zone")startRun(idx,"rift");
@@ -157,7 +174,7 @@ content.onclick=e=>{
  }
  if(act==="settings"){openSettings();return}
  if(act==="road"&&!combat&&hero.expedition){depart(hero.expedition.mode==="story"?"stairs":"portal",idx)}
- if(act==="name"){const s=$("knightName").value.trim();if(s)hero.name=s;show("hero")}
+ if(act==="editHero")show("create");
  if(act==="stat"&&hero.points&&["power","agility","mind"].includes(arg)){hero[arg]++;hero.points--;show("hero")}
  if(act==="slot"&&fittings[arg]){bagSlot=arg;show("bag")}
  if(act==="equip"&&hero.bag[idx]){hero.gear[hero.bag[idx].kind]=idx;if(hero.expedition)hero.expedition.hp=Math.min(hero.expedition.hp,maxHp());raisedUntil=performance.now()+1600;show("bag")}
@@ -476,6 +493,6 @@ function frame(ms){
 }
 if(hero.pendingCampPrize&&hero.trophy&&!hero.expedition){travel={to:hero.pendingCampPrize==="storyHome"?"storyHome":"homePortal",p:0}}
 else if(hero.expedition?.battle){combat=hero.expedition.battle;combat.task??={type:"clear",goal:combat.mobs.length,kills:0,found:0,stones:[]};show("pause")}else if(hero.expedition)show("routes");
-applyLayout(savedLayout||"center");if(!savedLayout&&!hero.expedition)openSettings();
+applyLayout(savedLayout||"center");if(hero.needsCreation&&!hero.expedition)show("create");else if(!savedLayout&&!hero.expedition)openSettings();
 if(!hero.expedition)enterTitle("Северное пограничье",hero.base==="castle"?"Двор привратника":"Колокольный брод");
 hud();requestAnimationFrame(frame);

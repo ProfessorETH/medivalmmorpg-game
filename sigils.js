@@ -1,6 +1,6 @@
 "use strict";
 const sigils={
- spark:{name:"Гром",hint:"Разряд на 3-й удар",color:"#97e2de"},
+ spark:{name:"Гром Перуна",hint:"Разряд на 3-й удар",color:"#97e2de"},
  spur:{name:"Шпора",hint:"Удар после рывка",color:"#ffd08a"}
 };
 function scatterSigils(b){
